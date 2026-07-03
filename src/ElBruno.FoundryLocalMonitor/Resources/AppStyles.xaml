@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Catppuccin Mocha-inspired palette -->
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#1E1E2E"/>
+    <SolidColorBrush x:Key="MantelBrush" Color="#181825"/>
+    <SolidColorBrush x:Key="OverlayBrush" Color="#313244"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#CDD6F4"/>
+    <SolidColorBrush x:Key="SubtextBrush" Color="#A6ADC8"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#89B4FA"/>
+    <SolidColorBrush x:Key="GreenBrush" Color="#A6E3A1"/>
+    <SolidColorBrush x:Key="RedBrush" Color="#F38BA8"/>
+
+    <Style TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+    </Style>
+
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="Padding" Value="14,6"/>
+    </Style>
+</ResourceDictionary>

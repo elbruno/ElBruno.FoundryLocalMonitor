@@ -1,0 +1,39 @@
+<Window x:Class="ElBruno.FoundryLocalMonitor.MiniMonitorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Foundry Monitor"
+        Width="280" Height="90"
+        SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        ResizeMode="NoResize">
+    <Border CornerRadius="8" Background="#313244" BorderBrush="#45475A" BorderThickness="1" Padding="12,8">
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="&#x2715;" Width="20" Height="20"
+                    Background="Transparent" Foreground="#A6ADC8" BorderThickness="0"
+                    FontSize="12" Cursor="Hand" VerticalAlignment="Top"
+                    Click="CloseButton_Click"/>
+            <StackPanel>
+                <DockPanel>
+                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#F38BA8"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                        <Setter Property="Fill" Value="#A6E3A1"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding StatusText}" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
+                </DockPanel>
+                <TextBlock Text="{Binding CurrentModel}" Foreground="#A6ADC8" FontSize="11" Margin="0,4,0,0"/>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>

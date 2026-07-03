@@ -1,0 +1,15 @@
+<Project>
+  <!--
+    PackAsTool rejects net10.0-windows (NETSDK1146). This is a Windows-only
+    WPF/systray tool; CI always runs windows-latest.
+    Run BeforeTargets="_PackToolValidation" to temporarily clear
+    TargetPlatformIdentifier only during pack validation.
+  -->
+  <Target Name="_SuppressPackToolPlatformCheck"
+          BeforeTargets="_PackToolValidation"
+          Condition="'$(PackAsTool)' == 'true' and '$(MSBuildProjectName)' == 'ElBruno.FoundryLocalMonitor.Tool'">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+</Project>

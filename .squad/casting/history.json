@@ -1,0 +1,22 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "Alien",
+      "assignment_id": "foundry-local-monitor-2026-07-03",
+      "used_at": "2026-07-03T13:58:59Z"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "foundry-local-monitor-2026-07-03": {
+      "universe": "Alien",
+      "agents": {
+        "lead-architect": "Ripley",
+        "backend-dev": "Bishop",
+        "wpf-ui-dev": "Vasquez",
+        "tester": "Hudson",
+        "devops-nuget": "Hicks"
+      },
+      "created_at": "2026-07-03T13:58:59Z"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ElBruno.FoundryLocalMonitor.Tool/ElBruno.FoundryLocalMonitor.Tool.csproj" />
+    <Project Path="src/ElBruno.FoundryLocalMonitor/ElBruno.FoundryLocalMonitor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ElBruno.FoundryLocalMonitor.Tests/ElBruno.FoundryLocalMonitor.Tests.csproj" />
+  </Folder>
+</Solution>

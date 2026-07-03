@@ -1,0 +1,105 @@
+<Window x:Class="ElBruno.FoundryLocalMonitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:ElBruno.FoundryLocalMonitor.ViewModels"
+        Title="Foundry Local Monitor"
+        Height="650" Width="950"
+        MinHeight="450" MinWidth="650"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Header bar -->
+        <Border DockPanel.Dock="Top" Background="#313244" Padding="16,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Ellipse Width="12" Height="12" Margin="0,0,8,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#F38BA8"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServiceRunning}" Value="True">
+                                        <Setter Property="Fill" Value="#A6E3A1"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="Foundry Local Monitor" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" Foreground="#A6ADC8"
+                           FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Main tab area -->
+        <TabControl Background="#1E1E2E" BorderThickness="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Foreground" Value="#CDD6F4"/>
+                    <Setter Property="Background" Value="#1E1E2E"/>
+                    <Setter Property="Padding" Value="12,6"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- Status tab -->
+            <TabItem Header="Status">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Service Status" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,8"/>
+                    <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="#A6ADC8" Margin="0,0,0,12"/>
+                    <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                            Width="100" HorizontalAlignment="Left"
+                            Background="#89B4FA" Foreground="#1E1E2E" BorderThickness="0"
+                            Padding="8,4" Cursor="Hand"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Loaded Models tab -->
+            <TabItem Header="Loaded Models">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Currently Loaded Models" FontSize="15"
+                               FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,12"/>
+                    <ListView Grid.Row="1" ItemsSource="{Binding LoadedModels}"
+                              Background="#313244" BorderThickness="0" Foreground="#CDD6F4">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Model ID" DisplayMemberBinding="{Binding ModelId}" Width="250"/>
+                                <GridViewColumn Header="Alias" DisplayMemberBinding="{Binding Alias}" Width="200"/>
+                                <GridViewColumn Header="Device" DisplayMemberBinding="{Binding Device}" Width="120"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </TabItem>
+
+            <!-- Available Models tab -->
+            <TabItem Header="Available Models">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Available Models" FontSize="15"
+                               FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,12"/>
+                    <ListView Grid.Row="1" ItemsSource="{Binding AvailableModels}"
+                              Background="#313244" BorderThickness="0" Foreground="#CDD6F4">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Model ID" DisplayMemberBinding="{Binding ModelId}" Width="300"/>
+                                <GridViewColumn Header="Alias" DisplayMemberBinding="{Binding Alias}" Width="200"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
