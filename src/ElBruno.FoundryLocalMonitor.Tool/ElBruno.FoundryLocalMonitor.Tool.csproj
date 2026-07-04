@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>foundry-monitor</ToolCommandName>
     <PackageId>ElBruno.FoundryLocalMonitor</PackageId>
-    <Version>0.5.2</Version>
+    <Version>0.5.3</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Windows systray monitor for Foundry Local — model load/unload notifications, mini status window</Description>
     <PackageTags>foundry-local;ai;monitor;windows;systray</PackageTags>
@@ -23,7 +23,7 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <ProjectReference Include="..\ElBruno.FoundryLocalMonitor\ElBruno.FoundryLocalMonitor.csproj" />
   </ItemGroup>
   <ItemGroup>
