@@ -87,9 +87,7 @@ public class FoundryPollingService : IFoundryService, IDisposable
                 return;
             }
 
-            if (status.Endpoint != null)
-                _httpClient.SetBaseUrl(status.Endpoint);
-
+            // Endpoint already updated inside GetStatusAsync — just fetch models
             var currentModels = await GetCurrentlyLoadedModelsAsync();
             DetectChanges(currentModels);
         }
@@ -124,11 +122,24 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     public async Task<FoundryServiceStatus> GetStatusAsync()
     {
-        if (await _httpClient.IsReachableAsync())
-            return new FoundryServiceStatus(true, null, null);
-
+        // CLI is authoritative — it knows the dynamic port Foundry picks at startup
         var output = await _cliRunner.RunAsync("service status");
-        return FoundryCliParser.ParseServiceStatus(output);
+        var cliStatus = FoundryCliParser.ParseServiceStatus(output);
+
+        if (cliStatus.IsRunning)
+        {
+            // Update HTTP client with the real endpoint the CLI reported
+            if (cliStatus.Endpoint != null)
+                _httpClient.SetBaseUrl(cliStatus.Endpoint);
+            return cliStatus;
+        }
+
+        // CLI not installed or reported not running — fall back to HTTP port scan
+        // (handles cases where foundry is running but CLI is unavailable)
+        if (await _httpClient.IsReachableAsync())
+            return new FoundryServiceStatus(true, _httpClient.CurrentBaseUrl, null);
+
+        return new FoundryServiceStatus(false, null, null);
     }
 
     public async Task<IReadOnlyList<FoundryModel>> GetAvailableModelsAsync()
