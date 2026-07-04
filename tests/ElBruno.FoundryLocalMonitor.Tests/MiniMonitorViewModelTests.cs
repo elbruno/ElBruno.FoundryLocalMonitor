@@ -82,7 +82,7 @@ public class MiniMonitorViewModelTests
         _serviceMock.Raise(s => s.ModelStateChanged += null, _serviceMock.Object,
             new ModelStateChange(model, ModelChangeType.Loaded, DateTime.Now));
 
-        _viewModel.CurrentModel.Should().Be("phi-3-mini");
+        _viewModel.CurrentModel.Should().Be("phi-3-mini [CPU]");
     }
 
     [Fact]
