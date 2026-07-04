@@ -62,6 +62,10 @@ jobs:
             Write-Host "🆕 Release $tag does not exist — creating."
           }
 
+          # Native command failures set $LASTEXITCODE; reset it so this check step
+          # can continue even when the release does not exist yet.
+          $global:LASTEXITCODE = 0
+
       - name: Create git tag
         if: steps.check_tag.outputs.exists == 'false'
         shell: pwsh
