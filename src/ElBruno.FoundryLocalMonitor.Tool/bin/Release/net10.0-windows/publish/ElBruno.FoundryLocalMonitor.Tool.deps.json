@@ -6,10 +6,10 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v10.0": {
-      "ElBruno.FoundryLocalMonitor.Tool/0.1.0": {
+      "ElBruno.FoundryLocalMonitor.Tool/0.5.6": {
         "dependencies": {
-          "ElBruno.FoundryLocalMonitor.App": "1.0.0",
-          "ElBruno.FoundryLocalMonitor": "1.0.0.0"
+          "ElBruno.FoundryLocalMonitor.App": "0.5.6",
+          "ElBruno.FoundryLocalMonitor": "0.5.6.0"
         },
         "runtime": {
           "ElBruno.FoundryLocalMonitor.Tool.dll": {}
@@ -406,7 +406,7 @@
           }
         }
       },
-      "ElBruno.FoundryLocalMonitor.App/1.0.0": {
+      "ElBruno.FoundryLocalMonitor.App/0.5.6": {
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.3.2",
           "Hardcodet.NotifyIcon.Wpf": "1.1.0",
@@ -416,23 +416,23 @@
         },
         "runtime": {
           "ElBruno.FoundryLocalMonitor.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
+            "assemblyVersion": "0.5.6.0",
+            "fileVersion": "0.5.6.0"
           }
         }
       },
-      "ElBruno.FoundryLocalMonitor/1.0.0.0": {
+      "ElBruno.FoundryLocalMonitor/0.5.6.0": {
         "runtime": {
           "ElBruno.FoundryLocalMonitor.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
+            "assemblyVersion": "0.5.6.0",
+            "fileVersion": "0.5.6.0"
           }
         }
       }
     }
   },
   "libraries": {
-    "ElBruno.FoundryLocalMonitor.Tool/0.1.0": {
+    "ElBruno.FoundryLocalMonitor.Tool/0.5.6": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -647,12 +647,12 @@
       "path": "microsoft.extensions.primitives/10.0.0",
       "hashPath": "microsoft.extensions.primitives.10.0.0.nupkg.sha512"
     },
-    "ElBruno.FoundryLocalMonitor.App/1.0.0": {
+    "ElBruno.FoundryLocalMonitor.App/0.5.6": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
     },
-    "ElBruno.FoundryLocalMonitor/1.0.0.0": {
+    "ElBruno.FoundryLocalMonitor/0.5.6.0": {
       "type": "reference",
       "serviceable": false,
       "sha512": ""

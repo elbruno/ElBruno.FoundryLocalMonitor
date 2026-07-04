@@ -1,10 +1,10 @@
 using System.Windows;
 using System.Windows.Threading;
+using ElBruno.FoundryLocalMonitor.Configuration;
 using ElBruno.FoundryLocalMonitor.Services;
 using ElBruno.FoundryLocalMonitor.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using WinFormsApp = System.Windows.Forms.Application;
 
 namespace ElBruno.FoundryLocalMonitor;
 
@@ -14,6 +14,7 @@ public partial class App : System.Windows.Application
     private TrayIconService? _trayIconService;
     private MainWindow? _mainWindow;
     private MiniMonitorWindow? _miniMonitorWindow;
+    private SettingsWindow? _settingsWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -22,12 +23,14 @@ public partial class App : System.Windows.Application
 
         RegisterGlobalExceptionHandlers();
 
+        var settings = SettingsService.Load();
+
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>
             {
+                services.AddSingleton(settings);
                 services.AddHttpClient<Foundry.FoundryHttpClient>();
                 services.AddSingleton<Cli.FoundryCliRunner>();
-                services.AddSingleton<Configuration.AppSettings>();
                 services.AddSingleton<IFoundryService, FoundryPollingService>();
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<MiniMonitorViewModel>();
@@ -47,6 +50,7 @@ public partial class App : System.Windows.Application
             foundryService,
             openMonitor: ShowMainWindow,
             openMiniWindow: ShowMiniWindow,
+            openSettings: ShowSettingsWindow,
             exitAction: Shutdown);
 
         await foundryService.StartPollingAsync();
@@ -67,6 +71,18 @@ public partial class App : System.Windows.Application
         _miniMonitorWindow.Activate();
     }
 
+    private void ShowSettingsWindow()
+    {
+        if (_settingsWindow == null || !_settingsWindow.IsLoaded)
+        {
+            var settings = _host!.Services.GetRequiredService<AppSettings>();
+            _settingsWindow = new SettingsWindow(settings);
+        }
+
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+    }
+
     protected override async void OnExit(ExitEventArgs e)
     {
         _trayIconService?.Dispose();
@@ -82,7 +98,6 @@ public partial class App : System.Windows.Application
     {
         DispatcherUnhandledException += (_, args) =>
         {
-            // Log but keep running — don't let UI exceptions kill the tray app
             args.Handled = true;
         };
 

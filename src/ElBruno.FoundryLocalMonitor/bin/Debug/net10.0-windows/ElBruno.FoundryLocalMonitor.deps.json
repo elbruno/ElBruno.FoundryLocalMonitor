@@ -9,7 +9,6 @@
       "ElBruno.FoundryLocalMonitor/1.0.0": {
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.3.2",
-          "Hardcodet.NotifyIcon.Wpf": "1.1.0",
           "Microsoft.Extensions.DependencyInjection": "10.0.0",
           "Microsoft.Extensions.Hosting": "10.0.0",
           "Microsoft.Extensions.Http": "10.0.0"
@@ -23,14 +22,6 @@
           "lib/net8.0/CommunityToolkit.Mvvm.dll": {
             "assemblyVersion": "8.3.0.0",
             "fileVersion": "8.3.2.1"
-          }
-        }
-      },
-      "Hardcodet.NotifyIcon.Wpf/1.1.0": {
-        "runtime": {
-          "lib/net5.0-windows7.0/Hardcodet.NotifyIcon.Wpf.dll": {
-            "assemblyVersion": "1.1.0.0",
-            "fileVersion": "1.1.0.17"
           }
         }
       },
@@ -423,13 +414,6 @@
       "sha512": "sha512-m8EolE1A0Updj68WTsZSGI6VWb6mUqHPh7QFo0kt7+JPhYMNXRS1ch8TS/oITAdcxTLrwMOp3ku1KjeG1/Zdpg==",
       "path": "communitytoolkit.mvvm/8.3.2",
       "hashPath": "communitytoolkit.mvvm.8.3.2.nupkg.sha512"
-    },
-    "Hardcodet.NotifyIcon.Wpf/1.1.0": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-FFEkdRSidMrbMfQVwhCzq6KtSyR1qQojqtiUrkCyjnOOuMf7W3TNQkzFnBBxYxFe7uLk5mz7M38wFh1qdWyfvg==",
-      "path": "hardcodet.notifyicon.wpf/1.1.0",
-      "hashPath": "hardcodet.notifyicon.wpf.1.1.0.nupkg.sha512"
     },
     "Microsoft.Extensions.Configuration/10.0.0": {
       "type": "package",

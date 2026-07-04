@@ -5,14 +5,14 @@
 ### 2026-07-03: Project Architecture — ElBruno.FoundryLocalMonitor
 **By:** Squad Coordinator (requested by elbruno)
 
-**Decision:** Adapt ElBruno.OllamaMonitor pattern for Foundry Local. WPF app on net9.0-windows.
+**Decision:** Adapt ElBruno.OllamaMonitor pattern for Foundry Local. WPF app on net10.0-windows.
 
 **Key choices:**
 - **Foundry integration:** Hybrid — HTTP API (OpenAI-compatible endpoint) primary, CLI (`foundry` binary) fallback
 - **Systray:** `Hardcodet.NotifyIcon.Wpf` (same as OllamaMonitor)
 - **MVVM:** `CommunityToolkit.Mvvm` with source generators
 - **Packaging:** dotnet global tool — `PackAsTool=true`, command `foundry-monitor`, NuGet ID `ElBruno.FoundryLocalMonitor`
-- **CI/CD:** GitHub Actions, `windows-latest` runner; NuGet publish on `v*` tag
+- **CI/CD:** GitHub Actions, `windows-latest` runner; GitHub Release-driven NuGet publish via OIDC Trusted Publishing
 
 ---
 
@@ -53,6 +53,17 @@
 - Execution provider info display (`foundry model info <model>`)
 - Polling interval + endpoint override settings
 - GitHub Actions CD for NuGet publish
+
+### 2026-07-03: NuGet Release Automation
+
+**Decision:** Publish the `ElBruno.FoundryLocalMonitor` dotnet tool from `src/ElBruno.FoundryLocalMonitor.Tool/` using GitHub Releases plus OIDC Trusted Publishing.
+
+**Key choices:**
+- `publish.yml` triggers on `release: published` and `workflow_dispatch`
+- `NuGet/login@v1` replaces long-lived NuGet API keys
+- `NUGET_USER` remains the only NuGet-related secret
+- Release automation lives in `.github/workflows/squad-release.yml`
+- Pack target is the tool project, not the solution
 
 ---
 

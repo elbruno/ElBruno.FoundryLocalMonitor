@@ -16,7 +16,6 @@ C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.dll
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.pdb
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\CommunityToolkit.Mvvm.dll
-C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Hardcodet.NotifyIcon.Wpf.dll
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Microsoft.Extensions.Configuration.dll
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Microsoft.Extensions.Configuration.Abstractions.dll
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Microsoft.Extensions.Configuration.Binder.dll
@@ -55,4 +54,10 @@ C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\MiniMonitorWindow.g.cs
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor_MarkupCompile.lref
 C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor_Content.g.cs
-C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Assets\foundry-tray.png
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\SettingsWindow.baml
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\SettingsWindow.g.cs
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-green.ico
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-blue.ico
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-red.ico
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-gray.ico
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.sourcelink.json

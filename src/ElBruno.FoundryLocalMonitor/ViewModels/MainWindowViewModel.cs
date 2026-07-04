@@ -3,15 +3,18 @@ using CommunityToolkit.Mvvm.Input;
 using ElBruno.FoundryLocalMonitor.Models;
 using ElBruno.FoundryLocalMonitor.Services;
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
+using WpfApplication = System.Windows.Application;
 
 namespace ElBruno.FoundryLocalMonitor.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IFoundryService _foundryService;
+    private readonly Dispatcher _dispatcher = WpfApplication.Current.Dispatcher;
 
     [ObservableProperty] private bool _isServiceRunning;
-    [ObservableProperty] private string _statusText = "Checking\u2026";
+    [ObservableProperty] private string _statusText = "Checking…";
 
     public ObservableCollection<FoundryModel> LoadedModels { get; } = [];
     public ObservableCollection<FoundryModel> AvailableModels { get; } = [];
@@ -25,27 +28,41 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnServiceStatusChanged(object? sender, bool isRunning)
     {
-        IsServiceRunning = isRunning;
-        StatusText = isRunning ? "Running" : "Stopped";
+        _dispatcher.Invoke(() =>
+        {
+            IsServiceRunning = isRunning;
+            StatusText = isRunning ? "Running" : "Stopped";
+        });
     }
 
     private void OnModelStateChanged(object? sender, ModelStateChange change)
     {
-        if (change.ChangeType == ModelChangeType.Loaded)
-            LoadedModels.Add(change.Model);
-        else
-            LoadedModels.Remove(change.Model);
+        _dispatcher.Invoke(() =>
+        {
+            if (change.ChangeType == ModelChangeType.Loaded)
+                LoadedModels.Add(change.Model);
+            else
+                LoadedModels.Remove(change.Model);
+        });
     }
 
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        StatusText = "Refreshing…";
         var status = await _foundryService.GetStatusAsync();
-        IsServiceRunning = status.IsRunning;
-        StatusText = status.IsRunning ? "Running" : "Stopped";
+        _dispatcher.Invoke(() =>
+        {
+            IsServiceRunning = status.IsRunning;
+            StatusText = status.IsRunning ? "Running" : "Stopped";
+        });
 
         var available = await _foundryService.GetAvailableModelsAsync();
-        AvailableModels.Clear();
-        foreach (var m in available) AvailableModels.Add(m);
+        _dispatcher.Invoke(() =>
+        {
+            AvailableModels.Clear();
+            foreach (var m in available) AvailableModels.Add(m);
+        });
     }
+
 }

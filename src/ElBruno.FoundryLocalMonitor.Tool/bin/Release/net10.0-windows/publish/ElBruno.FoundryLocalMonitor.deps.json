@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v10.0": {
-      "ElBruno.FoundryLocalMonitor/1.0.0": {
+      "ElBruno.FoundryLocalMonitor/0.5.6": {
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.3.2",
           "Hardcodet.NotifyIcon.Wpf": "1.1.0",
@@ -412,7 +412,7 @@
     }
   },
   "libraries": {
-    "ElBruno.FoundryLocalMonitor/1.0.0": {
+    "ElBruno.FoundryLocalMonitor/0.5.6": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

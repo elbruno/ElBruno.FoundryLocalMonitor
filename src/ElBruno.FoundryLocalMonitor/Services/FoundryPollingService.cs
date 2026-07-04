@@ -18,6 +18,7 @@ public class FoundryPollingService : IFoundryService, IDisposable
     private bool _isServiceRunning;
     private Timer? _timer;
     private bool _disposed;
+    private bool _firstPoll = true;
 
     public bool IsServiceRunning => _isServiceRunning;
     public IReadOnlyList<FoundryModel> LoadedModels => _loadedModels;
@@ -35,13 +36,19 @@ public class FoundryPollingService : IFoundryService, IDisposable
         _cliRunner = cliRunner;
         _settings = settings;
         _logger = logger;
+
+        // Apply endpoint override from settings
+        if (!string.IsNullOrWhiteSpace(settings.FoundryEndpointOverride))
+            _httpClient.SetBaseUrl(settings.FoundryEndpointOverride);
     }
 
-    public Task StartPollingAsync(CancellationToken ct = default)
+    public async Task StartPollingAsync(CancellationToken ct = default)
     {
-        var interval = TimeSpan.FromSeconds(_settings.PollingIntervalSeconds);
-        _timer = new Timer(async _ => await PollAsync(), null, TimeSpan.Zero, interval);
-        return Task.CompletedTask;
+        // Initial poll immediately so UI reflects real state on startup
+        await PollAsync();
+
+        var interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollingIntervalSeconds));
+        _timer = new Timer(async _ => await PollAsync(), null, interval, interval);
     }
 
     public Task StopPollingAsync()
@@ -51,19 +58,34 @@ public class FoundryPollingService : IFoundryService, IDisposable
         return Task.CompletedTask;
     }
 
+    public async Task PollOnceAsync() => await PollAsync();
+
     private async Task PollAsync()
     {
         try
         {
             var status = await GetStatusAsync();
+            var wasFirstPoll = _firstPoll;
+            _firstPoll = false;
 
-            if (status.IsRunning != _isServiceRunning)
+            // Fire on every change, or on first poll so UI gets initial state
+            if (status.IsRunning != _isServiceRunning || wasFirstPoll)
             {
                 _isServiceRunning = status.IsRunning;
                 ServiceStatusChanged?.Invoke(this, _isServiceRunning);
             }
 
-            if (!status.IsRunning) return;
+            if (!status.IsRunning)
+            {
+                if (_loadedModels.Count > 0)
+                {
+                    var prev = _loadedModels;
+                    _loadedModels = [];
+                    foreach (var model in prev)
+                        ModelStateChanged?.Invoke(this, new ModelStateChange(model, ModelChangeType.Unloaded, DateTime.Now));
+                }
+                return;
+            }
 
             if (status.Endpoint != null)
                 _httpClient.SetBaseUrl(status.Endpoint);
@@ -139,3 +161,4 @@ public class FoundryPollingService : IFoundryService, IDisposable
         _disposed = true;
     }
 }
+

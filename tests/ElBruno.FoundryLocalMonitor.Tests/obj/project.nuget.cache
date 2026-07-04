@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "2pmN6wsOSDk=",
+  "dgSpecHash": "8yVRqWVX3Ds=",
   "success": true,
   "projectFilePath": "C:\\src\\ElBruno.FoundryLocalMonitor\\tests\\ElBruno.FoundryLocalMonitor.Tests\\ElBruno.FoundryLocalMonitor.Tests.csproj",
   "expectedPackageFiles": [
@@ -8,7 +8,6 @@
     "C:\\Users\\brunocapuano\\.nuget\\packages\\communitytoolkit.mvvm\\8.3.2\\communitytoolkit.mvvm.8.3.2.nupkg.sha512",
     "C:\\Users\\brunocapuano\\.nuget\\packages\\coverlet.collector\\6.0.2\\coverlet.collector.6.0.2.nupkg.sha512",
     "C:\\Users\\brunocapuano\\.nuget\\packages\\fluentassertions\\6.12.1\\fluentassertions.6.12.1.nupkg.sha512",
-    "C:\\Users\\brunocapuano\\.nuget\\packages\\hardcodet.notifyicon.wpf\\1.1.0\\hardcodet.notifyicon.wpf.1.1.0.nupkg.sha512",
     "C:\\Users\\brunocapuano\\.nuget\\packages\\microsoft.codecoverage\\17.11.1\\microsoft.codecoverage.17.11.1.nupkg.sha512",
     "C:\\Users\\brunocapuano\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.0\\microsoft.extensions.configuration.10.0.0.nupkg.sha512",
     "C:\\Users\\brunocapuano\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\10.0.0\\microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",

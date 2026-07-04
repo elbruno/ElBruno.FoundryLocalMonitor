@@ -17,6 +17,7 @@ public sealed class TrayIconService : IDisposable
     private readonly IFoundryService _foundryService;
     private readonly Action _openMonitor;
     private readonly Action _openMiniWindow;
+    private readonly Action _openSettings;
     private readonly Action _exitAction;
     private readonly NotifyIcon _notifyIcon;
     private readonly IReadOnlyDictionary<FoundryTrayState, Icon> _icons;
@@ -26,11 +27,13 @@ public sealed class TrayIconService : IDisposable
         IFoundryService foundryService,
         Action openMonitor,
         Action openMiniWindow,
+        Action openSettings,
         Action exitAction)
     {
         _foundryService = foundryService;
         _openMonitor = openMonitor;
         _openMiniWindow = openMiniWindow;
+        _openSettings = openSettings;
         _exitAction = exitAction;
         _icons = LoadIcons();
 
@@ -42,7 +45,7 @@ public sealed class TrayIconService : IDisposable
             ContextMenuStrip = BuildContextMenu()
         };
 
-        _notifyIcon.DoubleClick += (_, _) => _openMonitor();
+        _notifyIcon.DoubleClick += (_, _) => _openMiniWindow();
 
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
@@ -95,7 +98,9 @@ public sealed class TrayIconService : IDisposable
             new ToolStripMenuItem("Open Monitor",    null, (_, _) => _openMonitor()),
             new ToolStripMenuItem("Mini Window",     null, (_, _) => _openMiniWindow()),
             new ToolStripSeparator(),
-            new ToolStripMenuItem("Visit GitHub",    null, (_, _) => OpenUrl("https://github.com/elbruno/ElBruno.FoundryLocalMonitor")),
+            new ToolStripMenuItem("Settings",        null, (_, _) => _openSettings()),
+            new ToolStripSeparator(),
+            new ToolStripMenuItem("About",           null, (_, _) => OpenUrl("https://github.com/elbruno/ElBruno.FoundryLocalMonitor")),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Exit",            null, (_, _) => _exitAction())
         ]);

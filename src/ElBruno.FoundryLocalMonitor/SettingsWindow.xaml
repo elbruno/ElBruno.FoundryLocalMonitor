@@ -1,0 +1,79 @@
+<Window x:Class="ElBruno.FoundryLocalMonitor.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings — Foundry Local Monitor"
+        Width="460" Height="380"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#1E1E2E">
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#313244" Padding="16,12">
+            <TextBlock Text="⚙ Settings" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+        </Border>
+
+        <!-- Footer buttons -->
+        <Border DockPanel.Dock="Bottom" Background="#313244" Padding="16,10">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Save" Width="80" Height="30" Margin="8,0,0,0"
+                        Background="#A6E3A1" Foreground="#1E1E2E" BorderThickness="0"
+                        FontWeight="SemiBold" Cursor="Hand" Click="Save_Click"/>
+                <Button DockPanel.Dock="Right" Content="Cancel" Width="80" Height="30"
+                        Background="#45475A" Foreground="#CDD6F4" BorderThickness="0"
+                        Cursor="Hand" Click="Cancel_Click"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Margin="16" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Polling -->
+                <TextBlock Text="Polling" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#89B4FA" Margin="0,0,0,8"/>
+
+                <DockPanel Margin="0,0,0,12">
+                    <TextBlock DockPanel.Dock="Left" Text="Refresh interval (seconds):"
+                               Foreground="#CDD6F4" Width="220" VerticalAlignment="Center"/>
+                    <TextBox x:Name="PollingIntervalBox" Width="80" HorizontalAlignment="Left"
+                             Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"
+                             Padding="6,4"/>
+                </DockPanel>
+
+                <!-- Endpoint -->
+                <TextBlock Text="Foundry Local Endpoint" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#89B4FA" Margin="0,8,0,8"/>
+
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="Endpoint URL override:"
+                               Foreground="#CDD6F4" Width="220" VerticalAlignment="Center"/>
+                    <TextBox x:Name="EndpointBox" Width="180" HorizontalAlignment="Left"
+                             Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"
+                             Padding="6,4"/>
+                </DockPanel>
+                <TextBlock Text="Leave blank to use default (http://localhost:5273)"
+                           Foreground="#6C7086" FontSize="11" Margin="0,2,0,12"/>
+
+                <!-- Notifications -->
+                <TextBlock Text="Notifications" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#89B4FA" Margin="0,8,0,8"/>
+
+                <CheckBox x:Name="NotifyOnLoadBox" Content="Show notification when model loads"
+                          Foreground="#CDD6F4" Margin="0,0,0,8"
+                          Style="{StaticResource {x:Type CheckBox}}"/>
+
+                <CheckBox x:Name="NotifyOnUnloadBox" Content="Show notification when model unloads"
+                          Foreground="#CDD6F4" Margin="0,0,0,8"/>
+
+                <!-- Startup -->
+                <TextBlock Text="Startup" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#89B4FA" Margin="0,8,0,8"/>
+
+                <CheckBox x:Name="StartMinimizedBox" Content="Start minimized to tray"
+                          Foreground="#CDD6F4" Margin="0,0,0,8"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

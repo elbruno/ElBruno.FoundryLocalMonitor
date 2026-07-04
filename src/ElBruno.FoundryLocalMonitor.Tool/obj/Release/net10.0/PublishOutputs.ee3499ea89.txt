@@ -1,0 +1,4 @@
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor.Tool\bin\Release\net10.0\publish\ElBruno.FoundryLocalMonitor.Tool.exe
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor.Tool\bin\Release\net10.0\publish\ElBruno.FoundryLocalMonitor.Tool.dll
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor.Tool\bin\Release\net10.0\publish\ElBruno.FoundryLocalMonitor.Tool.deps.json
+C:\src\ElBruno.FoundryLocalMonitor\src\ElBruno.FoundryLocalMonitor.Tool\bin\Release\net10.0\publish\ElBruno.FoundryLocalMonitor.Tool.runtimeconfig.json
