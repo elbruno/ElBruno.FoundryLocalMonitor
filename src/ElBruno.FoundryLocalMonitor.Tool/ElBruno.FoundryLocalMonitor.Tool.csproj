@@ -5,7 +5,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>foundry-monitor</ToolCommandName>
     <PackageId>ElBruno.FoundryLocalMonitor</PackageId>
-    <Version>0.5.1</Version>
+    <Version>0.5.2</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Windows systray monitor for Foundry Local — model load/unload notifications, mini status window</Description>
     <PackageTags>foundry-local;ai;monitor;windows;systray</PackageTags>
@@ -13,6 +13,7 @@
     <PackageProjectUrl>https://github.com/elbruno/ElBruno.FoundryLocalMonitor</PackageProjectUrl>
     <RepositoryUrl>https://github.com/elbruno/ElBruno.FoundryLocalMonitor</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>nuget-icon.png</PackageIcon>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Copyright>Copyright © 2026 Bruno Capuano</Copyright>
     <RootNamespace>ElBruno.FoundryLocalMonitor.Tool</RootNamespace>
@@ -27,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\ElBruno.FoundryLocalMonitor\Assets\nuget-icon.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
