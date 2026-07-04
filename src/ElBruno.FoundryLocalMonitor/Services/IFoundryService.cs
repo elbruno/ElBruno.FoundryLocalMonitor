@@ -6,10 +6,14 @@ public interface IFoundryService
 {
     bool IsServiceRunning { get; }
     bool IsCliInstalled { get; }
+    string? CurrentEndpoint { get; }
     IReadOnlyList<FoundryModel> LoadedModels { get; }
-    event EventHandler<ModelStateChange>? ModelStateChanged;
+
     event EventHandler<bool>? ServiceStatusChanged;
     event EventHandler<bool>? CliAvailabilityChanged;
+    event EventHandler<string?>? EndpointChanged;
+    event EventHandler<ModelStateChange>? ModelStateChanged;
+
     Task StartPollingAsync(CancellationToken ct = default);
     Task StopPollingAsync();
     Task<FoundryServiceStatus> GetStatusAsync();

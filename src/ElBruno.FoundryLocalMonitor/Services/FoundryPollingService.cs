@@ -16,18 +16,21 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private IReadOnlyList<FoundryModel> _loadedModels = [];
     private bool _isServiceRunning;
-    private bool _isCliInstalled = true; // optimistic until first check
+    private bool _isCliInstalled = true;
+    private string? _currentEndpoint;
     private Timer? _timer;
     private bool _disposed;
     private bool _firstPoll = true;
 
     public bool IsServiceRunning => _isServiceRunning;
     public bool IsCliInstalled => _isCliInstalled;
+    public string? CurrentEndpoint => _currentEndpoint;
     public IReadOnlyList<FoundryModel> LoadedModels => _loadedModels;
 
-    public event EventHandler<ModelStateChange>? ModelStateChanged;
     public event EventHandler<bool>? ServiceStatusChanged;
     public event EventHandler<bool>? CliAvailabilityChanged;
+    public event EventHandler<string?>? EndpointChanged;
+    public event EventHandler<ModelStateChange>? ModelStateChanged;
 
     public FoundryPollingService(
         FoundryHttpClient httpClient,
@@ -110,14 +113,22 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // CLI is authoritative — 'foundry service ps' lists models actually in memory
-        // HTTP /v1/models lists ALL catalog models (not just loaded ones) — wrong for this purpose
-        var output = await _cliRunner.RunAsync("service ps");
-        if (output != null)
-            return FoundryCliParser.ParseLoadedModels(output);
+        // 1. CLI: foundry service ps — authoritative for explicitly loaded models
+        var cliOutput = await _cliRunner.RunAsync("service ps");
+        var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
 
-        // CLI unavailable — fall back to /foundry/list (Foundry-specific, loaded models only)
-        return await _httpClient.GetLoadedModelsAsync();
+        // 2. HTTP: /foundry/list — catches on-demand loaded models (e.g. loaded via API/proxy)
+        var httpModels = await _httpClient.GetLoadedModelsAsync();
+
+        // Merge: union by ModelId so both sources contribute
+        if (cliModels == null || cliModels.Count == 0) return httpModels;
+        if (httpModels.Count == 0) return cliModels;
+
+        var merged = cliModels.ToList();
+        var existingIds = merged.Select(m => m.ModelId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in httpModels.Where(m => !existingIds.Contains(m.ModelId)))
+            merged.Add(m);
+        return merged;
     }
 
     private void DetectChanges(IReadOnlyList<FoundryModel> newModels)
@@ -136,10 +147,8 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     public async Task<FoundryServiceStatus> GetStatusAsync()
     {
-        // CLI is authoritative — it knows the dynamic port Foundry picks at startup
         var output = await _cliRunner.RunAsync("service status");
 
-        // Track CLI availability; fire event if it changes (e.g. user just installed it)
         var cliNowAvailable = output != null;
         if (cliNowAvailable != _isCliInstalled)
         {
@@ -151,17 +160,30 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
         if (cliStatus.IsRunning)
         {
-            // Update HTTP client with the real endpoint the CLI reported
             if (cliStatus.Endpoint != null)
+            {
                 _httpClient.SetBaseUrl(cliStatus.Endpoint);
+                UpdateEndpoint(cliStatus.Endpoint);
+            }
             return cliStatus;
         }
 
-        // CLI not installed or reported not running — fall back to HTTP port scan
+        // CLI unavailable or not running — try HTTP port scan
         if (await _httpClient.IsReachableAsync())
+        {
+            UpdateEndpoint(_httpClient.CurrentBaseUrl);
             return new FoundryServiceStatus(true, _httpClient.CurrentBaseUrl, null);
+        }
 
+        UpdateEndpoint(null);
         return new FoundryServiceStatus(false, null, null);
+    }
+
+    private void UpdateEndpoint(string? endpoint)
+    {
+        if (endpoint == _currentEndpoint) return;
+        _currentEndpoint = endpoint;
+        EndpointChanged?.Invoke(this, endpoint);
     }
 
     public async Task<IReadOnlyList<FoundryModel>> GetAvailableModelsAsync()

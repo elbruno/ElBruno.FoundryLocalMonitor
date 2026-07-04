@@ -28,7 +28,7 @@
                 </DockPanel>
 
                 <!-- Status row -->
-                <DockPanel Margin="0,0,0,4">
+                <DockPanel Margin="0,0,0,2">
                     <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
@@ -44,6 +44,11 @@
                     <TextBlock Text="{Binding StatusText}" Foreground="#CDD6F4"
                                FontSize="13" FontWeight="SemiBold"/>
                 </DockPanel>
+
+                <!-- Endpoint row (only shown when running) -->
+                <TextBlock Text="{Binding EndpointText}" Foreground="#89B4FA"
+                           FontSize="10" Margin="14,0,0,2" FontFamily="Consolas"
+                           Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}"/>
 
                 <!-- Model row -->
                 <TextBlock Text="{Binding CurrentModel}" Foreground="#A6ADC8"

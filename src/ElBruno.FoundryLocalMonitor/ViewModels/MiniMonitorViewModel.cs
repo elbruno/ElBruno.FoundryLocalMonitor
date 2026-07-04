@@ -19,6 +19,7 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isRunning;
     [ObservableProperty] private string _statusText = "Checking…";
     [ObservableProperty] private string _currentModel = "No model loaded";
+    [ObservableProperty] private string _endpointText = "";
     [ObservableProperty] private string _nextRefreshText = "";
     [ObservableProperty] private string _appVersion = "";
     [ObservableProperty] private string _loadedModelCount = "";
@@ -42,9 +43,11 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
         _foundryService.CliAvailabilityChanged += OnCliAvailabilityChanged;
+        _foundryService.EndpointChanged += OnEndpointChanged;
 
-        // Reflect initial state (service may already have checked CLI before ViewModel was created)
         UpdateCliWarning(_foundryService.IsCliInstalled);
+        if (_foundryService.CurrentEndpoint != null)
+            EndpointText = FormatEndpoint(_foundryService.CurrentEndpoint);
     }
 
     private void OnCountdownTick(object? sender, EventArgs e)
@@ -81,17 +84,24 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
                 CurrentModel = "No model loaded";
                 LoadedModelCount = "";
             }
-            else if (models.Count == 1)
-            {
-                CurrentModel = models[0].Alias;
-                LoadedModelCount = "1 model";
-            }
             else
             {
-                CurrentModel = models[0].Alias;
-                LoadedModelCount = $"{models.Count} models loaded";
+                var first = models[0];
+                var device = first.Device != null ? $" [{first.Device}]" : "";
+                CurrentModel = $"{first.Alias}{device}";
+                LoadedModelCount = models.Count > 1 ? $"+{models.Count - 1} more" : "";
             }
         });
+    }
+
+    private void OnEndpointChanged(object? sender, string? endpoint)
+        => _dispatcher.Invoke(() => EndpointText = endpoint != null ? FormatEndpoint(endpoint) : "");
+
+    private static string FormatEndpoint(string url)
+    {
+        // Show just host:port — strip scheme and trailing slash
+        try { return new Uri(url).Authority; }
+        catch { return url; }
     }
 
     private void OnCliAvailabilityChanged(object? sender, bool isInstalled)
@@ -110,5 +120,6 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
         _foundryService.ServiceStatusChanged -= OnServiceStatusChanged;
         _foundryService.ModelStateChanged -= OnModelStateChanged;
         _foundryService.CliAvailabilityChanged -= OnCliAvailabilityChanged;
+        _foundryService.EndpointChanged -= OnEndpointChanged;
     }
 }
