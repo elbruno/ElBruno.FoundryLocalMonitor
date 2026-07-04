@@ -3,9 +3,9 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>foundry-monitor</ToolCommandName>
+    <ToolCommandName>foundrylocalmon</ToolCommandName>
     <PackageId>ElBruno.FoundryLocalMonitor</PackageId>
-    <Version>0.5.3</Version>
+    <Version>0.5.4</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Windows systray monitor for Foundry Local — model load/unload notifications, mini status window</Description>
     <PackageTags>foundry-local;ai;monitor;windows;systray</PackageTags>
