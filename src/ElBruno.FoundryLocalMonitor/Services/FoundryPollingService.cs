@@ -16,15 +16,18 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private IReadOnlyList<FoundryModel> _loadedModels = [];
     private bool _isServiceRunning;
+    private bool _isCliInstalled = true; // optimistic until first check
     private Timer? _timer;
     private bool _disposed;
     private bool _firstPoll = true;
 
     public bool IsServiceRunning => _isServiceRunning;
+    public bool IsCliInstalled => _isCliInstalled;
     public IReadOnlyList<FoundryModel> LoadedModels => _loadedModels;
 
     public event EventHandler<ModelStateChange>? ModelStateChanged;
     public event EventHandler<bool>? ServiceStatusChanged;
+    public event EventHandler<bool>? CliAvailabilityChanged;
 
     public FoundryPollingService(
         FoundryHttpClient httpClient,
@@ -44,6 +47,14 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     public async Task StartPollingAsync(CancellationToken ct = default)
     {
+        // Check CLI availability once upfront — port is dynamic, CLI is required
+        var cliInstalled = await _cliRunner.IsFoundryInstalledAsync();
+        if (_isCliInstalled != cliInstalled)
+        {
+            _isCliInstalled = cliInstalled;
+            CliAvailabilityChanged?.Invoke(this, _isCliInstalled);
+        }
+
         // Initial poll immediately so UI reflects real state on startup
         await PollAsync();
 
@@ -124,6 +135,15 @@ public class FoundryPollingService : IFoundryService, IDisposable
     {
         // CLI is authoritative — it knows the dynamic port Foundry picks at startup
         var output = await _cliRunner.RunAsync("service status");
+
+        // Track CLI availability; fire event if it changes (e.g. user just installed it)
+        var cliNowAvailable = output != null;
+        if (cliNowAvailable != _isCliInstalled)
+        {
+            _isCliInstalled = cliNowAvailable;
+            CliAvailabilityChanged?.Invoke(this, _isCliInstalled);
+        }
+
         var cliStatus = FoundryCliParser.ParseServiceStatus(output);
 
         if (cliStatus.IsRunning)
@@ -135,7 +155,6 @@ public class FoundryPollingService : IFoundryService, IDisposable
         }
 
         // CLI not installed or reported not running — fall back to HTTP port scan
-        // (handles cases where foundry is running but CLI is unavailable)
         if (await _httpClient.IsReachableAsync())
             return new FoundryServiceStatus(true, _httpClient.CurrentBaseUrl, null);
 

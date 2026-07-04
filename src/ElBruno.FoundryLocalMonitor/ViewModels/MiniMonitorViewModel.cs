@@ -22,6 +22,8 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _nextRefreshText = "";
     [ObservableProperty] private string _appVersion = "";
     [ObservableProperty] private string _loadedModelCount = "";
+    [ObservableProperty] private bool _showCliWarning;
+    [ObservableProperty] private string _cliWarningText = "";
 
     public MiniMonitorViewModel(IFoundryService foundryService, AppSettings settings)
     {
@@ -39,6 +41,10 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
 
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
+        _foundryService.CliAvailabilityChanged += OnCliAvailabilityChanged;
+
+        // Reflect initial state (service may already have checked CLI before ViewModel was created)
+        UpdateCliWarning(_foundryService.IsCliInstalled);
     }
 
     private void OnCountdownTick(object? sender, EventArgs e)
@@ -88,10 +94,21 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
         });
     }
 
+    private void OnCliAvailabilityChanged(object? sender, bool isInstalled)
+        => _dispatcher.Invoke(() => UpdateCliWarning(isInstalled));
+
+    private void UpdateCliWarning(bool isInstalled)
+    {
+        ShowCliWarning = !isInstalled;
+        CliWarningText = isInstalled ? "" : "⚠ Foundry CLI not installed\nRun: winget install Microsoft.FoundryLocal";
+        if (!isInstalled) StatusText = "CLI required";
+    }
+
     public void Dispose()
     {
         _countdownTimer.Stop();
         _foundryService.ServiceStatusChanged -= OnServiceStatusChanged;
         _foundryService.ModelStateChanged -= OnModelStateChanged;
+        _foundryService.CliAvailabilityChanged -= OnCliAvailabilityChanged;
     }
 }

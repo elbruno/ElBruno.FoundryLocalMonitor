@@ -49,6 +49,24 @@ public sealed class TrayIconService : IDisposable
 
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
+        _foundryService.CliAvailabilityChanged += OnCliAvailabilityChanged;
+    }
+
+    private void OnCliAvailabilityChanged(object? sender, bool isInstalled)
+    {
+        if (!isInstalled)
+            ShowCliNotInstalledWarning();
+    }
+
+    internal void ShowCliNotInstalledWarning()
+    {
+        _notifyIcon.BalloonTipTitle = "⚠ Foundry CLI not installed";
+        _notifyIcon.BalloonTipText =
+            "Foundry Local Monitor requires the Foundry CLI to detect the service port.\n" +
+            "Run: winget install Microsoft.FoundryLocal";
+        _notifyIcon.BalloonTipIcon = ToolTipIcon.Warning;
+        _notifyIcon.ShowBalloonTip(10_000);
+        _notifyIcon.Text = "Foundry Local Monitor — CLI not installed";
     }
 
     private void OnServiceStatusChanged(object? sender, bool isRunning)
@@ -146,6 +164,7 @@ public sealed class TrayIconService : IDisposable
     {
         _foundryService.ServiceStatusChanged -= OnServiceStatusChanged;
         _foundryService.ModelStateChanged    -= OnModelStateChanged;
+        _foundryService.CliAvailabilityChanged -= OnCliAvailabilityChanged;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         foreach (var icon in _icons.Values)

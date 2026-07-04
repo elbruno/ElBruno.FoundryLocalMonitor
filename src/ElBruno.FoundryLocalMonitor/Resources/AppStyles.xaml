@@ -1,6 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
     <!-- Catppuccin Mocha-inspired palette -->
     <SolidColorBrush x:Key="SurfaceBrush" Color="#1E1E2E"/>
     <SolidColorBrush x:Key="MantelBrush" Color="#181825"/>

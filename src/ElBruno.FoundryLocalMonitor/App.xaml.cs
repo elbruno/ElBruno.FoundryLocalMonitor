@@ -54,6 +54,10 @@ public partial class App : System.Windows.Application
             exitAction: Shutdown);
 
         await foundryService.StartPollingAsync();
+
+        // Show CLI warning immediately if not installed (balloon needs the tray icon to exist first)
+        if (!foundryService.IsCliInstalled)
+            _trayIconService.ShowCliNotInstalledWarning();
     }
 
     private void ShowMainWindow()
