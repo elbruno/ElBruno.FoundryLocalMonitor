@@ -1,6 +1,8 @@
 # Build outputs
 artifacts/
 *.nupkg
+bin/
+obj/
 
 # .NET
 *.user
