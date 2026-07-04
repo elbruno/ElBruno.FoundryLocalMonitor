@@ -61,7 +61,7 @@ jobs:
         run: dotnet test tests\ElBruno.FoundryLocalMonitor.Tests\ElBruno.FoundryLocalMonitor.Tests.csproj -c Release --no-build --framework net10.0-windows --verbosity normal
 
       - name: Pack (Tool)
-        run: dotnet pack src\ElBruno.FoundryLocalMonitor.Tool\ElBruno.FoundryLocalMonitor.Tool.csproj -c Release --no-build -p:Version=${{ steps.version.outputs.version }} -o artifacts
+        run: dotnet pack src\ElBruno.FoundryLocalMonitor.Tool\ElBruno.FoundryLocalMonitor.Tool.csproj -c Release --no-restore -p:Version=${{ steps.version.outputs.version }} -o artifacts
 
       - name: NuGet login (OIDC → temp API key)
         uses: NuGet/login@v1
