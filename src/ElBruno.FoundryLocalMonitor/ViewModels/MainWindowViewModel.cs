@@ -11,7 +11,7 @@ namespace ElBruno.FoundryLocalMonitor.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly IFoundryService _foundryService;
-    private readonly Dispatcher _dispatcher = WpfApplication.Current.Dispatcher;
+    private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
 
     [ObservableProperty] private bool _isServiceRunning;
     [ObservableProperty] private string _statusText = "Checking…";

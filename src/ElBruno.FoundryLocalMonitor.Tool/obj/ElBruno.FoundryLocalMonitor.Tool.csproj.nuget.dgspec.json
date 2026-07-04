@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\src\\ElBruno.FoundryLocalMonitor\\src\\ElBruno.FoundryLocalMonitor.Tool\\ElBruno.FoundryLocalMonitor.Tool.csproj": {
-      "version": "0.5.8",
+      "version": "0.5.10",
       "restore": {
         "projectUniqueName": "C:\\src\\ElBruno.FoundryLocalMonitor\\src\\ElBruno.FoundryLocalMonitor.Tool\\ElBruno.FoundryLocalMonitor.Tool.csproj",
         "projectName": "ElBruno.FoundryLocalMonitor",

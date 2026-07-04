@@ -1,3 +1,4 @@
+using ElBruno.FoundryLocalMonitor.Configuration;
 using ElBruno.FoundryLocalMonitor.Models;
 using ElBruno.FoundryLocalMonitor.Services;
 using ElBruno.FoundryLocalMonitor.ViewModels;
@@ -16,14 +17,15 @@ public class MiniMonitorViewModelTests
     {
         _serviceMock = new Mock<IFoundryService>();
         _serviceMock.SetupGet(s => s.IsServiceRunning).Returns(false);
+        _serviceMock.SetupGet(s => s.IsCliInstalled).Returns(true);
         _serviceMock.SetupGet(s => s.LoadedModels).Returns([]);
-        _viewModel = new MiniMonitorViewModel(_serviceMock.Object);
+        _viewModel = new MiniMonitorViewModel(_serviceMock.Object, new AppSettings());
     }
 
     [Fact]
-    public void Constructor_DefaultStatusText_IsStopped()
+    public void Constructor_DefaultStatusText_IsChecking()
     {
-        _viewModel.StatusText.Should().Be("Stopped");
+        _viewModel.StatusText.Should().Be("Checking\u2026");
     }
 
     [Fact]
@@ -36,6 +38,21 @@ public class MiniMonitorViewModelTests
     public void Constructor_DefaultIsRunning_IsFalse()
     {
         _viewModel.IsRunning.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Constructor_CliInstalled_ShowCliWarningIsFalse()
+    {
+        _viewModel.ShowCliWarning.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CliAvailabilityChanged_NotInstalled_ShowsWarning()
+    {
+        _serviceMock.Raise(s => s.CliAvailabilityChanged += null, _serviceMock.Object, false);
+
+        _viewModel.ShowCliWarning.Should().BeTrue();
+        _viewModel.StatusText.Should().Be("CLI required");
     }
 
     [Fact]
@@ -61,6 +78,7 @@ public class MiniMonitorViewModelTests
     public void ModelStateChanged_ModelLoaded_UpdatesCurrentModel()
     {
         var model = new FoundryModel("phi-3-mini-4k", "phi-3-mini", "CPU", true);
+        _serviceMock.SetupGet(s => s.LoadedModels).Returns([model]);
         _serviceMock.Raise(s => s.ModelStateChanged += null, _serviceMock.Object,
             new ModelStateChange(model, ModelChangeType.Loaded, DateTime.Now));
 
@@ -72,8 +90,11 @@ public class MiniMonitorViewModelTests
     {
         var model = new FoundryModel("phi-3-mini-4k", "phi-3-mini", "CPU", true);
 
+        _serviceMock.SetupGet(s => s.LoadedModels).Returns([model]);
         _serviceMock.Raise(s => s.ModelStateChanged += null, _serviceMock.Object,
             new ModelStateChange(model, ModelChangeType.Loaded, DateTime.Now));
+
+        _serviceMock.SetupGet(s => s.LoadedModels).Returns([]);
         _serviceMock.Raise(s => s.ModelStateChanged += null, _serviceMock.Object,
             new ModelStateChange(model, ModelChangeType.Unloaded, DateTime.Now));
 

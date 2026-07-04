@@ -12,7 +12,7 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
 {
     private readonly IFoundryService _foundryService;
     private readonly AppSettings _settings;
-    private readonly Dispatcher _dispatcher = WpfApplication.Current.Dispatcher;
+    private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly DispatcherTimer _countdownTimer;
     private int _secondsUntilRefresh;
 

@@ -20,7 +20,6 @@ C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\D
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Castle.Core.dll
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\CommunityToolkit.Mvvm.dll
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\FluentAssertions.dll
-C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Hardcodet.NotifyIcon.Wpf.dll
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Microsoft.VisualStudio.CodeCoverage.Shim.dll
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Microsoft.Extensions.Configuration.dll
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Microsoft.Extensions.Configuration.Abstractions.dll
@@ -136,3 +135,8 @@ C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\obj\D
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.Tests.pdb
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.Tests.genruntimeconfig.cache
 C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\obj\Debug\net10.0-windows\ref\ElBruno.FoundryLocalMonitor.Tests.dll
+C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-green.ico
+C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-blue.ico
+C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-red.ico
+C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\bin\Debug\net10.0-windows\Assets\TrayIcons\tray-gray.ico
+C:\src\ElBruno.FoundryLocalMonitor\tests\ElBruno.FoundryLocalMonitor.Tests\obj\Debug\net10.0-windows\ElBruno.FoundryLocalMonitor.Tests.sourcelink.json
