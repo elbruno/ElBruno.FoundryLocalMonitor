@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>foundrylocalmon</ToolCommandName>
     <PackageId>ElBruno.FoundryLocalMonitor</PackageId>
-    <Version>0.5.5</Version>
+    <Version>0.5.7</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Windows systray monitor for Foundry Local — model load/unload notifications, mini status window</Description>
     <PackageTags>foundry-local;ai;monitor;windows;systray</PackageTags>
@@ -19,16 +19,13 @@
     <RootNamespace>ElBruno.FoundryLocalMonitor.Tool</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageOutputPath>..\..\artifacts</PackageOutputPath>
+    <DebugType>embedded</DebugType>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\ElBruno.FoundryLocalMonitor\ElBruno.FoundryLocalMonitor.csproj" />
-  </ItemGroup>
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
     <None Include="..\ElBruno.FoundryLocalMonitor\Assets\nuget-icon.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
-
 </Project>
+
