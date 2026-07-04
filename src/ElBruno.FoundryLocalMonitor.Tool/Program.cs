@@ -12,7 +12,7 @@ thread.SetApartmentState(ApartmentState.STA);
 thread.Start();
 thread.Join();
 #else
-Console.Error.WriteLine("foundry-monitor: This tool only runs on Windows.");
+Console.Error.WriteLine("foundrylocalmon: This tool only runs on Windows (requires WPF and Windows Notification Area).");
 Console.Error.WriteLine("See: https://github.com/elbruno/ElBruno.FoundryLocalMonitor");
 Environment.Exit(1);
 #endif

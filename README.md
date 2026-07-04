@@ -11,6 +11,8 @@
 
 Windows systray monitor for [Foundry Local](https://learn.microsoft.com/en-us/azure/foundry-local/) — shows model load/unload notifications and a mini status window.
 
+> ⚠️ **Windows only.** This tool uses WPF and the Windows Notification Area. It cannot run on macOS or Linux.
+
 ## Package
 
 | Package | NuGet | Downloads | Description |
