@@ -29,26 +29,53 @@ public static partial class FoundryCliParser
         if (string.IsNullOrWhiteSpace(output))
             return [];
 
-        if (output.Contains("No models", StringComparison.OrdinalIgnoreCase))
+        if (output.Contains("No models", StringComparison.OrdinalIgnoreCase)
+         || output.Contains("no model", StringComparison.OrdinalIgnoreCase))
             return [];
 
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var models = new List<FoundryModel>();
 
-        foreach (var line in lines.Skip(1)) // skip header
+        // Detect header line to find column positions (handles variable column layouts)
+        // Known layouts:
+        //   Name  Alias  Provider  Generator  IsLoaded  Port
+        //   ModelId  Alias  Device  Status
+        int nameCol = 0, aliasCol = 1, deviceCol = -1;
+
+        var headerLine = lines.FirstOrDefault(l =>
+            l.Contains("Name", StringComparison.OrdinalIgnoreCase) ||
+            l.Contains("ModelId", StringComparison.OrdinalIgnoreCase) ||
+            l.Contains("Model", StringComparison.OrdinalIgnoreCase));
+
+        // Determine alias column index from header
+        if (headerLine != null)
+        {
+            var headers = headerLine.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < headers.Length; i++)
+            {
+                if (headers[i].Equals("Alias", StringComparison.OrdinalIgnoreCase)) aliasCol = i;
+                if (headers[i].Equals("Device", StringComparison.OrdinalIgnoreCase) ||
+                    headers[i].Equals("Provider", StringComparison.OrdinalIgnoreCase)) deviceCol = i;
+            }
+        }
+
+        foreach (var line in lines.Skip(1))
         {
             var trimmed = line.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('-')) continue;
+            // Skip header/separator lines
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('-') || trimmed.StartsWith('=')) continue;
+            // Skip the header row itself if it reappears
+            if (trimmed.StartsWith("Name", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("ModelId", StringComparison.OrdinalIgnoreCase)) continue;
 
-            // Columns: ModelId  Alias  Device  Status
             var parts = trimmed.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 1)
-            {
-                var modelId = parts[0];
-                var alias = parts.Length >= 2 ? parts[1] : modelId;
-                var device = parts.Length >= 3 ? parts[2] : null;
-                models.Add(new FoundryModel(modelId, alias, device, true));
-            }
+            if (parts.Length < 1) continue;
+
+            var modelId = parts[nameCol];
+            var alias = parts.Length > aliasCol ? parts[aliasCol] : modelId;
+            var device = deviceCol >= 0 && parts.Length > deviceCol ? parts[deviceCol] : null;
+
+            models.Add(new FoundryModel(modelId, alias, device, true));
         }
 
         return models;

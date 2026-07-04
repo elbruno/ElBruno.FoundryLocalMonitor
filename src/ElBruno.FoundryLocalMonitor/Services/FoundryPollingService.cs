@@ -110,11 +110,14 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        if (await _httpClient.IsReachableAsync())
-            return await _httpClient.GetLoadedModelsAsync();
-
+        // CLI is authoritative — 'foundry service ps' lists models actually in memory
+        // HTTP /v1/models lists ALL catalog models (not just loaded ones) — wrong for this purpose
         var output = await _cliRunner.RunAsync("service ps");
-        return FoundryCliParser.ParseLoadedModels(output);
+        if (output != null)
+            return FoundryCliParser.ParseLoadedModels(output);
+
+        // CLI unavailable — fall back to /foundry/list (Foundry-specific, loaded models only)
+        return await _httpClient.GetLoadedModelsAsync();
     }
 
     private void DetectChanges(IReadOnlyList<FoundryModel> newModels)

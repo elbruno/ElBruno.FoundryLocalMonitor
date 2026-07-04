@@ -81,32 +81,21 @@ public class FoundryHttpClient
 
     public async Task<IReadOnlyList<FoundryModel>> GetLoadedModelsAsync(CancellationToken ct = default)
     {
-        try
-        {
-            var foundryModels = await TryGetFoundryListAsync(ct);
-            if (foundryModels != null) return foundryModels;
-
-            var response = await _http.GetFromJsonAsync<OpenAiModelListResponse>($"{_baseUrl}/v1/models", ct);
-            return response?.Data?.Select(m => new FoundryModel(m.Id, m.Id, null, true)).ToList() ?? [];
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "Could not get loaded models from HTTP API");
-            return [];
-        }
-    }
-
-    private async Task<IReadOnlyList<FoundryModel>?> TryGetFoundryListAsync(CancellationToken ct)
-    {
+        // Only use /foundry/list — /v1/models lists ALL catalog models, not just loaded ones
         try
         {
             var json = await _http.GetStringAsync($"{_baseUrl}/foundry/list", ct);
             var items = JsonSerializer.Deserialize<List<FoundryModelDto>>(json, JsonOptions);
-            return items?.Select(m => new FoundryModel(m.ModelId ?? m.Alias ?? "", m.Alias ?? "", m.Device, true)).ToList();
+            return items?.Select(m => new FoundryModel(
+                m.ModelId ?? m.Alias ?? "",
+                m.Alias ?? m.ModelId ?? "",
+                m.Device,
+                true)).ToList() ?? [];
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            _logger?.LogDebug(ex, "Could not get loaded models from /foundry/list");
+            return [];
         }
     }
 
@@ -116,8 +105,6 @@ public class FoundryHttpClient
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private record OpenAiModelListResponse(List<OpenAiModelDto>? Data);
-    private record OpenAiModelDto(string Id);
     private record FoundryModelDto(
         [property: JsonPropertyName("modelId")] string? ModelId,
         [property: JsonPropertyName("alias")] string? Alias,
