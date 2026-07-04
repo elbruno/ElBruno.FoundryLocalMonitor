@@ -1,24 +1,26 @@
-using System.IO;
 using System.Windows;
-using System.Windows.Media.Imaging;
-using ElBruno.FoundryLocalMonitor.Models;
+using System.Windows.Threading;
 using ElBruno.FoundryLocalMonitor.Services;
 using ElBruno.FoundryLocalMonitor.ViewModels;
-using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using WinFormsApp = System.Windows.Forms.Application;
 
 namespace ElBruno.FoundryLocalMonitor;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private IHost? _host;
-    private TaskbarIcon? _trayIcon;
+    private TrayIconService? _trayIconService;
     private MainWindow? _mainWindow;
+    private MiniMonitorWindow? _miniMonitorWindow;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        RegisterGlobalExceptionHandlers();
 
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>
@@ -26,7 +28,7 @@ public partial class App : Application
                 services.AddHttpClient<Foundry.FoundryHttpClient>();
                 services.AddSingleton<Cli.FoundryCliRunner>();
                 services.AddSingleton<Configuration.AppSettings>();
-                services.AddSingleton<IFoundryService, Services.FoundryPollingService>();
+                services.AddSingleton<IFoundryService, FoundryPollingService>();
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<MiniMonitorViewModel>();
                 services.AddTransient<MainWindow>();
@@ -36,49 +38,23 @@ public partial class App : Application
 
         await _host.StartAsync();
 
-        SetupTrayIcon();
+        _mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        _miniMonitorWindow = _host.Services.GetRequiredService<MiniMonitorWindow>();
 
         var foundryService = _host.Services.GetRequiredService<IFoundryService>();
-        foundryService.ModelStateChanged += OnModelStateChanged;
+
+        _trayIconService = new TrayIconService(
+            foundryService,
+            openMonitor: ShowMainWindow,
+            openMiniWindow: ShowMiniWindow,
+            exitAction: Shutdown);
+
         await foundryService.StartPollingAsync();
-    }
-
-    private void SetupTrayIcon()
-    {
-        _trayIcon = new TaskbarIcon
-        {
-            ToolTipText = "Foundry Local Monitor",
-            Visibility = Visibility.Visible,
-            IconSource = new BitmapImage(new Uri("pack://siteoforigin:,,,/Assets/foundry-tray.png"))
-        };
-
-        var contextMenu = new System.Windows.Controls.ContextMenu();
-
-        var openItem = new System.Windows.Controls.MenuItem { Header = "Open Monitor" };
-        openItem.Click += (_, _) => ShowMainWindow();
-
-        var miniItem = new System.Windows.Controls.MenuItem { Header = "Mini Window" };
-        miniItem.Click += (_, _) => ShowMiniWindow();
-
-        var separator1 = new System.Windows.Controls.Separator();
-
-        var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };
-        exitItem.Click += (_, _) => Shutdown();
-
-        contextMenu.Items.Add(openItem);
-        contextMenu.Items.Add(miniItem);
-        contextMenu.Items.Add(separator1);
-        contextMenu.Items.Add(exitItem);
-
-        _trayIcon.ContextMenu = contextMenu;
-        _trayIcon.TrayMouseDoubleClick += (_, _) => ShowMainWindow();
     }
 
     private void ShowMainWindow()
     {
-        if (_mainWindow == null || !_mainWindow.IsLoaded)
-            _mainWindow = _host!.Services.GetRequiredService<MainWindow>();
-
+        if (_mainWindow == null) return;
         _mainWindow.Show();
         _mainWindow.Activate();
         _mainWindow.WindowState = WindowState.Normal;
@@ -86,29 +62,14 @@ public partial class App : Application
 
     private void ShowMiniWindow()
     {
-        var mini = _host!.Services.GetRequiredService<MiniMonitorWindow>();
-        mini.Show();
-        mini.Activate();
-    }
-
-    private void OnModelStateChanged(object? sender, ModelStateChange change)
-    {
-        var message = change.ChangeType == ModelChangeType.Loaded
-            ? $"✅ Model loaded: {change.Model.Alias}"
-            : $"⏏ Model unloaded: {change.Model.Alias}";
-
-        Dispatcher.Invoke(() =>
-        {
-            _trayIcon?.ShowBalloonTip(
-                title: "Foundry Local Monitor",
-                message: message,
-                symbol: BalloonIcon.Info);
-        });
+        if (_miniMonitorWindow == null) return;
+        _miniMonitorWindow.Show();
+        _miniMonitorWindow.Activate();
     }
 
     protected override async void OnExit(ExitEventArgs e)
     {
-        _trayIcon?.Dispose();
+        _trayIconService?.Dispose();
         if (_host != null)
         {
             await _host.StopAsync();
@@ -116,4 +77,21 @@ public partial class App : Application
         }
         base.OnExit(e);
     }
+
+    private void RegisterGlobalExceptionHandlers()
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            // Log but keep running — don't let UI exceptions kill the tray app
+            args.Handled = true;
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => { };
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            args.SetObserved();
+        };
+    }
 }
+
