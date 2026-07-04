@@ -49,14 +49,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $release = gh release view "${{ steps.version.outputs.tag }}" --json tagName 2>$null
-          if ($release) {
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release view "$tag" --json tagName *> $null
+          $exists = $LASTEXITCODE -eq 0
+
+          if ($exists) {
             "exists=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-            Write-Host "⏭️ Release ${{ steps.version.outputs.tag }} already exists — skipping."
+            Write-Host "⏭️ Release $tag already exists — skipping."
           }
           else {
             "exists=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-            Write-Host "🆕 Release ${{ steps.version.outputs.tag }} does not exist — creating."
+            Write-Host "🆕 Release $tag does not exist — creating."
           }
 
       - name: Create git tag
