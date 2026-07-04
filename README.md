@@ -28,13 +28,13 @@ Windows systray monitor for [Foundry Local](https://learn.microsoft.com/en-us/az
 
 ```bash
 dotnet tool install -g ElBruno.FoundryLocalMonitor
-foundry-monitor
+foundrylocalmon
 ```
 
 ## Requirements
 
 - Windows 10/11
-- .NET 9 runtime
+- .NET 10 runtime
 - [Foundry Local](https://learn.microsoft.com/en-us/azure/foundry-local/how-to/how-to-install-foundry-local) installed
 
 ## Build from source
