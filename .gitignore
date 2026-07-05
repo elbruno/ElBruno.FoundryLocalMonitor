@@ -21,3 +21,6 @@ obj/
 # local E2E test output
 _run_test/
 chat_input.txt
+
+# E2E test artifacts
+tests/e2e/last-run-results.txt
