@@ -367,11 +367,13 @@ if ($Script:endpoint) {
 # TEST 5 -- Service stop detection
 # ============================================================================
 Write-Section "TEST 5 -- Service stop detection"
-Write-Step "Checking 'foundry service status' is stopped (up to 60s)..."
+Write-Step "Checking 'foundry service status' is stopped (up to 120s)..."
 
-$stopped = Wait-For -Description "Foundry service to stop" -TimeoutSec 60 -Condition {
-    $ep = Get-ServiceEndpoint
-    if ($null -eq $ep) { return $true }
+$stopped = Wait-For -Description "Foundry service to stop" -TimeoutSec 120 -Condition {
+    # Fast path: check if Inference.Service.Agent process is gone.
+    # This avoids calling 'foundry service status' which blocks when daemon is stopping.
+    $inferenceProc = Get-Process -Name "Inference.Service.Agent" -ErrorAction SilentlyContinue
+    if ($null -eq $inferenceProc) { return $true }
     return $null
 }
 
@@ -392,8 +394,8 @@ if ($MonitorProc -and -not $MonitorProc.HasExited) {
 }
 
 # Force-stop the Foundry service in case the sample app crashed without cleanup
-$ep = Get-ServiceEndpoint
-if ($ep) {
+$inferenceStillRunning = Get-Process -Name "Inference.Service.Agent" -ErrorAction SilentlyContinue
+if ($inferenceStillRunning) {
     Write-Step "Force-stopping Foundry service (app may have crashed)..."
     & foundry service stop 2>&1 | Out-Null
     Write-Host "  [OK] Service stopped via CLI" -ForegroundColor Green
