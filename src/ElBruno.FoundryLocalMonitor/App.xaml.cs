@@ -30,6 +30,7 @@ public partial class App : System.Windows.Application
             {
                 services.AddSingleton(settings);
                 services.AddHttpClient<Foundry.FoundryHttpClient>();
+                services.AddHttpClient<Foundry.FoundryEndpointDiscovery>();
                 services.AddSingleton<Cli.FoundryCliRunner>();
                 services.AddSingleton<IFoundryService, FoundryPollingService>();
                 services.AddSingleton<MainWindowViewModel>();

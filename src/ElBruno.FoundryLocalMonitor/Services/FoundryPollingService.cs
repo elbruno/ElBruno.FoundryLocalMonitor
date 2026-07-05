@@ -11,6 +11,7 @@ public class FoundryPollingService : IFoundryService, IDisposable
 {
     private readonly FoundryHttpClient _httpClient;
     private readonly FoundryCliRunner _cliRunner;
+    private readonly FoundryEndpointDiscovery _discovery;
     private readonly AppSettings _settings;
     private readonly ILogger<FoundryPollingService>? _logger;
 
@@ -19,12 +20,14 @@ public class FoundryPollingService : IFoundryService, IDisposable
     private bool _isCliInstalled = true;
     private string? _currentEndpoint;
     private Timer? _timer;
+    private Timer? _discoveryTimer;
     private bool _disposed;
     private bool _firstPoll = true;
 
-    // Default SDK internal server port (FoundryLocalManager.StartWebServiceAsync).
-    // Apps using the SDK directly load models here, invisible to the foundry CLI.
-    private const string SdkInternalUrl = "http://127.0.0.1:55588";
+    // Cache of discovered Foundry API ports; refreshed on discovery cycles
+    private IReadOnlyList<FoundryEndpoint> _discoveredEndpoints = [];
+    private DateTime _lastDiscovery = DateTime.MinValue;
+    private static readonly TimeSpan DiscoveryInterval = TimeSpan.FromSeconds(30);
 
     public bool IsServiceRunning => _isServiceRunning;
     public bool IsCliInstalled => _isCliInstalled;
@@ -39,22 +42,22 @@ public class FoundryPollingService : IFoundryService, IDisposable
     public FoundryPollingService(
         FoundryHttpClient httpClient,
         FoundryCliRunner cliRunner,
+        FoundryEndpointDiscovery discovery,
         AppSettings settings,
         ILogger<FoundryPollingService>? logger = null)
     {
         _httpClient = httpClient;
         _cliRunner = cliRunner;
+        _discovery = discovery;
         _settings = settings;
         _logger = logger;
 
-        // Apply endpoint override from settings
         if (!string.IsNullOrWhiteSpace(settings.FoundryEndpointOverride))
             _httpClient.SetBaseUrl(settings.FoundryEndpointOverride);
     }
 
     public async Task StartPollingAsync(CancellationToken ct = default)
     {
-        // Check CLI availability once upfront — port is dynamic, CLI is required
         var cliInstalled = await _cliRunner.IsFoundryInstalledAsync();
         if (_isCliInstalled != cliInstalled)
         {
@@ -62,17 +65,26 @@ public class FoundryPollingService : IFoundryService, IDisposable
             CliAvailabilityChanged?.Invoke(this, _isCliInstalled);
         }
 
-        // Initial poll immediately so UI reflects real state on startup
+        // Run discovery immediately on startup
+        await RunDiscoveryAsync(ct);
+
+        // Initial poll so UI reflects real state immediately
         await PollAsync();
 
         var interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollingIntervalSeconds));
         _timer = new Timer(async _ => await PollAsync(), null, interval, interval);
+
+        // Background discovery refresh every 30s to catch new apps
+        _discoveryTimer = new Timer(async _ => await RunDiscoveryAsync(), null,
+            DiscoveryInterval, DiscoveryInterval);
     }
 
     public Task StopPollingAsync()
     {
         _timer?.Dispose();
         _timer = null;
+        _discoveryTimer?.Dispose();
+        _discoveryTimer = null;
         return Task.CompletedTask;
     }
 
@@ -82,11 +94,16 @@ public class FoundryPollingService : IFoundryService, IDisposable
     {
         try
         {
+            // Re-run discovery if daemon just appeared or interval elapsed
+            var daemonRunning = FoundryEndpointDiscovery.IsDaemonRunning();
+            var discoveryStale = DateTime.UtcNow - _lastDiscovery > DiscoveryInterval;
+            if (discoveryStale || (_discoveredEndpoints.Count == 0 && daemonRunning))
+                await RunDiscoveryAsync();
+
             var status = await GetStatusAsync();
             var wasFirstPoll = _firstPoll;
             _firstPoll = false;
 
-            // Fire on every change, or on first poll so UI gets initial state
             if (status.IsRunning != _isServiceRunning || wasFirstPoll)
             {
                 _isServiceRunning = status.IsRunning;
@@ -105,7 +122,6 @@ public class FoundryPollingService : IFoundryService, IDisposable
                 return;
             }
 
-            // Endpoint already updated inside GetStatusAsync — just fetch models
             var currentModels = await GetCurrentlyLoadedModelsAsync();
             DetectChanges(currentModels);
         }
@@ -115,35 +131,52 @@ public class FoundryPollingService : IFoundryService, IDisposable
         }
     }
 
+    /// <summary>
+    /// Probes all localhost listeners in parallel to discover every Foundry API endpoint.
+    /// Runs on startup and every 30 seconds to catch newly launched apps.
+    /// </summary>
+    private async Task RunDiscoveryAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var endpoints = await _discovery.DiscoverAsync(ct);
+            _discoveredEndpoints = endpoints;
+            _lastDiscovery = DateTime.UtcNow;
+            _logger?.LogDebug("Discovery: {Count} endpoint(s) found", endpoints.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Endpoint discovery error");
+        }
+    }
+
+    /// <summary>
+    /// Merges models from ALL discovered Foundry endpoints.
+    /// Catches models from: CLI daemon, SDK-managed apps, Aspire-proxied services.
+    /// </summary>
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // 1. HTTP: GET /v1/models at the daemon endpoint — CLI-managed models
-        var httpModels = await _httpClient.GetLoadedModelsAsync();
+        // Fresh model list from each discovered endpoint (fast — already found in discovery)
+        var allTasks = _discoveredEndpoints
+            .Select(ep => _httpClient.GetLoadedModelsFromUrlAsync(ep.BaseUrl))
+            .ToArray();
+        var allResults = await Task.WhenAll(allTasks);
 
-        // 2. SDK internal port: apps using FoundryLocalManager SDK load models here,
-        //    which are NOT visible via the foundry CLI or the daemon's /v1/models.
-        var sdkModels = await _httpClient.GetLoadedModelsFromUrlAsync(SdkInternalUrl);
-
-        // 3. CLI: foundry service ps — fallback / cross-reference
+        // Also check foundry service ps (CLI-managed models, may not appear via HTTP)
         var cliOutput = await _cliRunner.RunAsync("service ps");
         var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
 
-        // Merge: union by ModelId so all sources contribute
-        if (httpModels.Count == 0 && sdkModels.Count == 0 && (cliModels == null || cliModels.Count == 0))
-            return [];
+        // Merge: union by ModelId across all sources
+        var merged = new List<FoundryModel>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var merged = httpModels.ToList();
-        var existingIds = merged.Select(m => m.ModelId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var m in sdkModels.Where(m => !existingIds.Contains(m.ModelId)))
-        {
-            merged.Add(m);
-            existingIds.Add(m.ModelId);
-        }
+        foreach (var list in allResults)
+            foreach (var m in list)
+                if (seen.Add(m.ModelId)) merged.Add(m);
 
         if (cliModels != null)
-            foreach (var m in cliModels.Where(m => !existingIds.Contains(m.ModelId)))
-                merged.Add(m);
+            foreach (var m in cliModels)
+                if (seen.Add(m.ModelId)) merged.Add(m);
 
         return merged;
     }
@@ -164,8 +197,31 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     public async Task<FoundryServiceStatus> GetStatusAsync()
     {
-        var output = await _cliRunner.RunAsync("service status");
+        // 1. Fast path: daemon process alive?
+        if (FoundryEndpointDiscovery.IsDaemonRunning())
+        {
+            var daemonPort = FoundryEndpointDiscovery.GetDaemonPort();
+            if (daemonPort.HasValue)
+            {
+                var daemonUrl = $"http://127.0.0.1:{daemonPort}/openai/status";
+                _httpClient.SetBaseUrl($"http://127.0.0.1:{daemonPort}");
+                UpdateEndpoint(daemonUrl);
+                return new FoundryServiceStatus(true, daemonUrl, null);
+            }
+        }
 
+        // 2. Any discovered endpoints alive?
+        if (_discoveredEndpoints.Count > 0)
+        {
+            var first = _discoveredEndpoints[0];
+            _httpClient.SetBaseUrl(first.BaseUrl);
+            var displayUrl = $"{first.BaseUrl}/v1/models";
+            UpdateEndpoint(displayUrl);
+            return new FoundryServiceStatus(true, displayUrl, null);
+        }
+
+        // 3. CLI check as fallback
+        var output = await _cliRunner.RunAsync("service status");
         var cliNowAvailable = output != null;
         if (cliNowAvailable != _isCliInstalled)
         {
@@ -174,35 +230,13 @@ public class FoundryPollingService : IFoundryService, IDisposable
         }
 
         var cliStatus = FoundryCliParser.ParseServiceStatus(output);
-
-        if (cliStatus.IsRunning)
+        if (cliStatus.IsRunning && cliStatus.Endpoint != null)
         {
-            if (cliStatus.Endpoint != null)
-            {
-                _httpClient.SetBaseUrl(ExtractBaseUrl(cliStatus.Endpoint));  // base URL only for HTTP calls
-                UpdateEndpoint(cliStatus.Endpoint);                           // full URL (with path) for display
-            }
+            _httpClient.SetBaseUrl(ExtractBaseUrl(cliStatus.Endpoint));
+            UpdateEndpoint(cliStatus.Endpoint);
+            // Daemon appeared — trigger immediate rediscovery next poll
+            _lastDiscovery = DateTime.MinValue;
             return cliStatus;
-        }
-
-        // SDK-managed apps (e.g. FoundryLocalProxy) start an internal REST server at port 55588
-        // without going through the foundry CLI — check that port before falling back.
-        var sdkModels = await _httpClient.GetLoadedModelsFromUrlAsync(SdkInternalUrl);
-        if (sdkModels.Count > 0)
-        {
-            var sdkUrl = $"{SdkInternalUrl}/v1/models";
-            _httpClient.SetBaseUrl(SdkInternalUrl);
-            UpdateEndpoint(sdkUrl);
-            return new FoundryServiceStatus(true, sdkUrl, null);
-        }
-
-        // CLI unavailable or not running — try HTTP port scan
-        if (await _httpClient.IsReachableAsync())
-        {
-            var baseUrl = ExtractBaseUrl(_httpClient.CurrentBaseUrl);
-            _httpClient.SetBaseUrl(baseUrl);
-            UpdateEndpoint(baseUrl);
-            return new FoundryServiceStatus(true, baseUrl, null);
         }
 
         UpdateEndpoint(null);
@@ -236,19 +270,16 @@ public class FoundryPollingService : IFoundryService, IDisposable
     }
 
     public async Task LoadModelAsync(string modelId)
-    {
-        await _cliRunner.RunAsync($"model load {modelId}");
-    }
+        => await _cliRunner.RunAsync($"model load {modelId}");
 
     public async Task UnloadModelAsync(string modelId)
-    {
-        await _cliRunner.RunAsync($"model unload {modelId}");
-    }
+        => await _cliRunner.RunAsync($"model unload {modelId}");
 
     public void Dispose()
     {
         if (_disposed) return;
         _timer?.Dispose();
+        _discoveryTimer?.Dispose();
         _disposed = true;
     }
 }
