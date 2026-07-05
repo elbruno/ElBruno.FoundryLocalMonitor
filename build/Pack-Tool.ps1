@@ -17,7 +17,7 @@ if (-not [string]::IsNullOrWhiteSpace($Version)) {
     $versionArgs += "-p:Version=$Version"
 }
 
-dotnet publish $desktopProject -c $Configuration -f net10.0-windows -r win-x64 --self-contained false -p:PublishDir="$desktopPublishDir" @versionArgs
+dotnet publish $desktopProject -c $Configuration -f net10.0-windows10.0.17763.0 -r win-x64 --self-contained false -p:PublishDir="$desktopPublishDir" @versionArgs
 dotnet pack $toolProject -c $Configuration @versionArgs
 
 $packagePath = Get-ChildItem -LiteralPath $packageDirectory -Filter 'ElBruno.FoundryLocalMonitor.*.nupkg' |
