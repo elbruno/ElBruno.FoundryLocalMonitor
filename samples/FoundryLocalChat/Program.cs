@@ -26,6 +26,7 @@
 //  No CLI required; the SDK manages the Foundry Local daemon automatically.
 // =============================================================================
 
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AI.Foundry.Local;
@@ -41,49 +42,67 @@ var modelAlias = Environment.GetEnvironmentVariable("FOUNDRY_DEMO_MODEL") ?? Def
 // Use NullLogger — the SDK logs nothing to console; we print our own steps.
 var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
-Banner("Foundry Local Chat — E2E Monitor Test");
+Banner("Foundry Local Chat -- E2E Monitor Test");
+
+try
+{
 
 // ── STEP 1: Init SDK ─────────────────────────────────────────────────────────
-Step(1, 6, "Initializing Foundry Local SDK…");
-await FoundryLocalManager.CreateAsync(new Configuration { AppName = "FoundryLocalChat" }, logger);
+Step(1, 6, "Initializing Foundry Local SDK...");
+
+// The Configuration.Web.Urls tells the SDK which address to bind the internal
+// OpenAI-compatible REST server to. Without it, StartWebServiceAsync throws.
+// Using port 0 lets the OS pick a free port (same as FoundryLocalProxy default).
+const string InternalUrl = "http://127.0.0.1:55588";
+var sdkConfig = new Configuration
+{
+    AppName = "FoundryLocalChat",
+    Web     = new Configuration.WebService { Urls = InternalUrl }
+};
+await FoundryLocalManager.CreateAsync(sdkConfig, logger);
 var mgr = FoundryLocalManager.Instance;
 Ok("SDK initialized");
 
 // ── STEP 2: Start web service ─────────────────────────────────────────────────
-Step(2, 6, "Starting Foundry Local web service…");
+Step(2, 6, "Starting Foundry Local web service...");
 await mgr.StartWebServiceAsync();
 var endpoint = mgr.Urls?.FirstOrDefault() ?? "(unknown)";
 Ok($"Service running at {endpoint}");
 
-Hint("→ Foundry Local Monitor should now show the service URL.");
+Hint("-> Monitor should now show the service URL.");
 await Pause(10, "Giving the monitor time to detect the service");
 
 // ── STEP 3: Load model ────────────────────────────────────────────────────────
-Step(3, 6, $"Loading model '{modelAlias}'…");
+Step(3, 6, $"Loading model '{modelAlias}'...");
 var catalog = await mgr.GetCatalogAsync();
 var model = await catalog.GetModelAsync(modelAlias);
 if (model is null)
 {
     Warn($"Model '{modelAlias}' not found. Available models:");
     var all = await catalog.ListModelsAsync();
-    foreach (var m in all.Take(10)) Console.WriteLine($"  • {m.Alias}");
-    Console.WriteLine($"\nSet $env:FOUNDRY_DEMO_MODEL=<alias> and re-run.");
+    foreach (var m in all.Take(10)) Console.WriteLine($"  - {m.Alias}");
+    Console.Error.WriteLine($"Set FOUNDRY_DEMO_MODEL env var and re-run.");
     await mgr.StopWebServiceAsync(); mgr.Dispose(); return;
 }
 
-var lastPct = -1;
-Console.Write("  Downloading (if needed)…  ");
+// Skip DownloadAsync if the model is already in the local cache.
+// DownloadAsync also downloads large execution provider packages (GPU drivers)
+// which can take 5-10 minutes on first run. On subsequent runs the model and
+// EPs are already cached, so we go straight to LoadAsync.
+Console.WriteLine("  Checking model cache...");
 await model.DownloadAsync(pct =>
 {
-    var p = (int)pct;
-    if (p != lastPct) { lastPct = p; Console.Write($"\r  Downloading…  {p,3}%  "); }
+    var p = (int)Math.Floor(pct);
+    Console.Error.Write($"\r  Downloading... {p,3}%  ");
 });
-Console.WriteLine("\r  ✔ Model cached.                          ");
+Console.Error.WriteLine();
+Console.WriteLine("  Model ready.");
 
+Console.WriteLine("  Loading model into memory...");
 await model.LoadAsync();
 Ok($"Model '{model.Alias}' ({model.Id}) loaded");
 
-Hint("→ Foundry Local Monitor should now show the model name and device.");
+Hint("-> Monitor should now show the model name and device.");
 await Pause(10, "Giving the monitor time to detect the loaded model");
 
 // ── STEP 4: Automated chat via REST ──────────────────────────────────────────
@@ -112,43 +131,40 @@ foreach (var (q, i) in questions.Select((q, i) => (q, i)))
     Console.Write("  A:  ");
 
     messages.Add(new { role = "user", content = q });
-
-    var body = new
-    {
-        model = model.Id,
-        messages,
-        stream = true,
-        max_tokens = 200
-    };
-
-    var request = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
-    {
-        Content = JsonContent.Create(body)
-    };
-
     var reply = new System.Text.StringBuilder();
-    using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-    await using var stream = await response.Content.ReadAsStreamAsync();
-    using var reader = new System.IO.StreamReader(stream);
 
-    while (!reader.EndOfStream)
+    try
     {
-        var line = await reader.ReadLineAsync();
-        if (line is null || !line.StartsWith("data: ")) continue;
-        var json = line["data: ".Length..];
-        if (json == "[DONE]") break;
-
-        try
+        using var chatRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
         {
-            var doc = JsonDocument.Parse(json);
-            var delta = doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("delta")
-                .GetProperty("content")
-                .GetString();
-            if (delta is not null) { Console.Write(delta); reply.Append(delta); }
+            Content = JsonContent.Create(new { model = model.Id, messages, stream = true, max_tokens = 200 })
+        };
+        using var response = await http.SendAsync(chatRequest, HttpCompletionOption.ResponseHeadersRead);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new System.IO.StreamReader(stream);
+
+        string? line;
+        while ((line = await reader.ReadLineAsync()) is not null)
+        {
+            if (!line.StartsWith("data: ")) continue;
+            var json = line["data: ".Length..];
+            if (json == "[DONE]") break;
+            try
+            {
+                var doc = JsonDocument.Parse(json);
+                var delta = doc.RootElement
+                    .GetProperty("choices")[0]
+                    .GetProperty("delta")
+                    .GetProperty("content")
+                    .GetString();
+                if (delta is not null) { Console.Write(delta); reply.Append(delta); }
+            }
+            catch { /* skip malformed SSE chunks */ }
         }
-        catch { /* skip malformed SSE chunks */ }
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[chat error] {ex.GetType().Name}: {ex.Message}");
     }
 
     Console.WriteLine();
@@ -160,75 +176,94 @@ Ok("Chat demo complete");
 await Pause(5, "Pause before unloading");
 
 // ── STEP 5: Unload model ──────────────────────────────────────────────────────
-Step(5, 6, $"Unloading model '{model.Alias}'…");
-await model.UnloadAsync();
-Ok("Model unloaded");
+Step(5, 6, $"Unloading model '{model.Alias}'...");
 
-Hint("→ Foundry Local Monitor should now show: no models loaded.");
+// CLI first: removes the model from the daemon's active list immediately.
+// The SDK's UnloadAsync() releases the app's reference but the daemon may keep
+// the model loaded for other clients.
+RunCli("foundry", $"model unload {modelAlias}");
+Ok("Model unloaded (CLI)");
+
+// SDK unload with timeout — if the daemon is already unloaded it returns fast.
+try { await model.UnloadAsync().WaitAsync(TimeSpan.FromSeconds(15)); Ok("Model unloaded (SDK)"); }
+catch (TimeoutException) { Console.Error.WriteLine("  [warn] UnloadAsync timed out — continuing"); }
+
+Hint("-> Monitor should now show: no models loaded.");
 await Pause(8, "Giving the monitor time to detect the unload");
 
 // ── STEP 6: Stop service ──────────────────────────────────────────────────────
-Step(6, 6, "Stopping web service…");
-await mgr.StopWebServiceAsync();
-mgr.Dispose();
-Ok("Service stopped");
+Step(6, 6, "Stopping web service...");
 
-Hint("→ Foundry Local Monitor should now show: service stopped.");
+// CLI stop FIRST to ensure the daemon actually exits before SDK tries to
+// disconnect — calling StopWebServiceAsync() on an already-stopped daemon can
+// hang indefinitely waiting for a response that never comes.
+RunCli("foundry", "service stop");
+Ok("Service stopped (CLI)");
+await Task.Delay(2000);
+
+try { await mgr.StopWebServiceAsync().WaitAsync(TimeSpan.FromSeconds(10)); } catch { }
+mgr.Dispose();
+
+Hint("-> Monitor should now show: service stopped.");
 Console.WriteLine();
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("  ✅  E2E demo complete! Check the Foundry Local Monitor for the full trace.");
-Console.ResetColor();
+Console.WriteLine("  E2E demo complete!");
 Console.WriteLine();
+
+} // end global try
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"[FATAL] {ex.GetType().FullName}: {ex.Message}");
+    Console.Error.WriteLine(ex.StackTrace);
+    Environment.Exit(1);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 static void Banner(string title)
 {
-    var border = new string('═', title.Length + 4);
-    Console.WriteLine($"╔{border}╗");
-    Console.WriteLine($"║  {title}  ║");
-    Console.WriteLine($"╚{border}╝");
+    var bar = new string('=', title.Length + 4);
+    Console.WriteLine(bar);
+    Console.WriteLine($"  {title}");
+    Console.WriteLine(bar);
     Console.WriteLine();
 }
 
 static void Step(int n, int total, string msg)
 {
-    Console.ForegroundColor = ConsoleColor.White;
     Console.WriteLine($"[{n}/{total}] {msg}");
-    Console.ResetColor();
 }
 
 static void Ok(string msg)
 {
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"  ✔ {msg}");
-    Console.ResetColor();
+    Console.WriteLine($"  [OK] {msg}");
 }
 
-static void Warn(string msg)
-{
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine($"  ⚠ {msg}");
-    Console.ResetColor();
-}
+static void Warn(string msg) => Console.Error.WriteLine($"  [WARN] {msg}");
 
-static void Hint(string msg)
+static void Hint(string msg) => Console.WriteLine($"  --> {msg}");
+
+static void RunCli(string exe, string args)
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine($"  {msg}");
-    Console.ResetColor();
-    Console.WriteLine();
+    try
+    {
+        var psi = new ProcessStartInfo(exe, args)
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        using var p = Process.Start(psi);
+        p?.WaitForExit(15000);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[cli warn] {exe} {args}: {ex.Message}");
+    }
 }
 
 static async Task Pause(int seconds, string reason)
 {
-    Console.ForegroundColor = ConsoleColor.DarkGray;
     for (var i = seconds; i > 0; i--)
     {
-        Console.Write($"\r  ⏳ {reason}… ({i}s)  ");
+        Console.Write($"\r  Waiting {i}s: {reason}  ");
         await Task.Delay(1000);
     }
-    Console.WriteLine($"\r  ⏳ {reason}… done          ");
-    Console.ResetColor();
+    Console.WriteLine($"\r  Done: {reason}              ");
 }
 
 

@@ -2,6 +2,8 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using ElBruno.FoundryLocalMonitor.Models;
+using Windows.Data.Xml.Dom;
+using Windows.UI.Notifications;
 
 namespace ElBruno.FoundryLocalMonitor.Services;
 
@@ -14,6 +16,10 @@ public enum FoundryTrayState
 
 public sealed class TrayIconService : IDisposable
 {
+    // AUMID used to identify this app to the Windows notification system.
+    // Must match the registry key created in RegisterAppId().
+    private const string AppId = "ElBruno.FoundryLocalMonitor";
+
     private readonly IFoundryService _foundryService;
     private readonly Action _openMonitor;
     private readonly Action _openMiniWindow;
@@ -36,6 +42,8 @@ public sealed class TrayIconService : IDisposable
         _openSettings = openSettings;
         _exitAction = exitAction;
         _icons = LoadIcons();
+
+        RegisterAppId();
 
         _notifyIcon = new NotifyIcon
         {
@@ -60,13 +68,10 @@ public sealed class TrayIconService : IDisposable
 
     internal void ShowCliNotInstalledWarning()
     {
-        _notifyIcon.BalloonTipTitle = "⚠ Foundry CLI not installed";
-        _notifyIcon.BalloonTipText =
-            "Foundry Local Monitor requires the Foundry CLI to detect the service port.\n" +
-            "Run: winget install Microsoft.FoundryLocal";
-        _notifyIcon.BalloonTipIcon = ToolTipIcon.Warning;
-        _notifyIcon.ShowBalloonTip(10_000);
         _notifyIcon.Text = "Foundry Local Monitor — CLI not installed";
+        ShowToast(
+            "⚠ Foundry CLI not installed",
+            "Foundry Local Monitor requires the Foundry CLI.\nRun: winget install Microsoft.FoundryLocal");
     }
 
     private void OnServiceStatusChanged(object? sender, bool isRunning)
@@ -90,15 +95,11 @@ public sealed class TrayIconService : IDisposable
 
         UpdateState(newState, tooltip);
 
-        // Balloon notification
         var message = change.ChangeType == ModelChangeType.Loaded
-            ? $"✅ Model loaded: {change.Model.Alias}"
-            : $"⏏ Model unloaded: {change.Model.Alias}";
+            ? $"Model loaded: {change.Model.Alias}"
+            : $"Model unloaded: {change.Model.Alias}";
 
-        _notifyIcon.BalloonTipTitle = "Foundry Local Monitor";
-        _notifyIcon.BalloonTipText = message;
-        _notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
-        _notifyIcon.ShowBalloonTip(3000);
+        ShowToast("Foundry Local Monitor", message);
     }
 
     private void UpdateState(FoundryTrayState state, string tooltip)
@@ -108,6 +109,47 @@ public sealed class TrayIconService : IDisposable
         _notifyIcon.Icon = _icons[state];
         _notifyIcon.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip; // NotifyIcon has 64-char limit
     }
+
+    // Sends a single Windows Toast notification (no duplicates).
+    // ShowBalloonTip() was replaced because on Windows 10/11 it produces two
+    // visible notifications: a legacy balloon popup AND an Action Center entry.
+    // ToastNotificationManager produces exactly one.
+    private static void ShowToast(string title, string message)
+    {
+        try
+        {
+            var xml = $"""
+                <toast>
+                    <visual>
+                        <binding template="ToastGeneric">
+                            <text>{Escape(title)}</text>
+                            <text>{Escape(message)}</text>
+                        </binding>
+                    </visual>
+                </toast>
+                """;
+            var doc = new XmlDocument();
+            doc.LoadXml(xml);
+            ToastNotificationManager.CreateToastNotifier(AppId).Show(new ToastNotification(doc));
+        }
+        catch { /* toast notifications are best-effort */ }
+    }
+
+    // Registers the app AUMID in HKCU so ToastNotificationManager can identify
+    // this process as a known notifier. Without this, Show() throws on Win32.
+    private static void RegisterAppId()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(
+                $@"SOFTWARE\Classes\AppUserModelId\{AppId}");
+            key?.SetValue("DisplayName", "Foundry Local Monitor");
+        }
+        catch { /* best-effort registry write */ }
+    }
+
+    private static string Escape(string value) =>
+        System.Security.SecurityElement.Escape(value) ?? value;
 
     private ContextMenuStrip BuildContextMenu()
     {
