@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FoundryLocalChat</RootNamespace>
+    <AssemblyName>FoundryLocalChat</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WinML variant: hardware-accelerated execution providers (GPU/NPU) on Windows -->
+    <PackageReference Include="Microsoft.AI.Foundry.Local.WinML" Version="1.2.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+</Project>

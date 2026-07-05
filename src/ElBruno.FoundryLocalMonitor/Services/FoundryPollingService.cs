@@ -162,8 +162,8 @@ public class FoundryPollingService : IFoundryService, IDisposable
         {
             if (cliStatus.Endpoint != null)
             {
-                _httpClient.SetBaseUrl(cliStatus.Endpoint);
-                UpdateEndpoint(cliStatus.Endpoint);
+                _httpClient.SetBaseUrl(ExtractBaseUrl(cliStatus.Endpoint));  // base URL only for HTTP calls
+                UpdateEndpoint(cliStatus.Endpoint);                           // full URL (with path) for display
             }
             return cliStatus;
         }
@@ -171,8 +171,10 @@ public class FoundryPollingService : IFoundryService, IDisposable
         // CLI unavailable or not running — try HTTP port scan
         if (await _httpClient.IsReachableAsync())
         {
-            UpdateEndpoint(_httpClient.CurrentBaseUrl);
-            return new FoundryServiceStatus(true, _httpClient.CurrentBaseUrl, null);
+            var baseUrl = ExtractBaseUrl(_httpClient.CurrentBaseUrl);
+            _httpClient.SetBaseUrl(baseUrl);
+            UpdateEndpoint(baseUrl);
+            return new FoundryServiceStatus(true, baseUrl, null);
         }
 
         UpdateEndpoint(null);
@@ -184,6 +186,12 @@ public class FoundryPollingService : IFoundryService, IDisposable
         if (endpoint == _currentEndpoint) return;
         _currentEndpoint = endpoint;
         EndpointChanged?.Invoke(this, endpoint);
+    }
+
+    private static string ExtractBaseUrl(string url)
+    {
+        try { var uri = new Uri(url); return $"{uri.Scheme}://{uri.Authority}"; }
+        catch { return url; }
     }
 
     public async Task<IReadOnlyList<FoundryModel>> GetAvailableModelsAsync()

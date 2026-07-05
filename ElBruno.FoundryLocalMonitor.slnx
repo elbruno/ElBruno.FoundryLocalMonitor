@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/FoundryLocalChat/FoundryLocalChat.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/ElBruno.FoundryLocalMonitor.Tool/ElBruno.FoundryLocalMonitor.Tool.csproj" />
     <Project Path="src/ElBruno.FoundryLocalMonitor/ElBruno.FoundryLocalMonitor.csproj" />

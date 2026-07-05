@@ -8,13 +8,14 @@ using WpfApplication = System.Windows.Application;
 
 namespace ElBruno.FoundryLocalMonitor.ViewModels;
 
-public partial class MainWindowViewModel : ObservableObject
+public partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private readonly IFoundryService _foundryService;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
 
     [ObservableProperty] private bool _isServiceRunning;
     [ObservableProperty] private string _statusText = "Checking…";
+    [ObservableProperty] private string _endpointText = "";
 
     public ObservableCollection<FoundryModel> LoadedModels { get; } = [];
     public ObservableCollection<FoundryModel> AvailableModels { get; } = [];
@@ -24,6 +25,7 @@ public partial class MainWindowViewModel : ObservableObject
         _foundryService = foundryService;
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
+        _foundryService.EndpointChanged += OnEndpointChanged;
     }
 
     private void OnServiceStatusChanged(object? sender, bool isRunning)
@@ -46,6 +48,20 @@ public partial class MainWindowViewModel : ObservableObject
         });
     }
 
+    private void OnEndpointChanged(object? sender, string? endpoint)
+    {
+        _dispatcher.Invoke(() =>
+        {
+            EndpointText = endpoint != null ? ExtractBaseUrl(endpoint) : "";
+        });
+    }
+
+    private static string ExtractBaseUrl(string url)
+    {
+        try { var uri = new Uri(url); return $"{uri.Scheme}://{uri.Authority}"; }
+        catch { return url; }
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -63,6 +79,13 @@ public partial class MainWindowViewModel : ObservableObject
             AvailableModels.Clear();
             foreach (var m in available) AvailableModels.Add(m);
         });
+    }
+
+    public void Dispose()
+    {
+        _foundryService.ServiceStatusChanged -= OnServiceStatusChanged;
+        _foundryService.ModelStateChanged -= OnModelStateChanged;
+        _foundryService.EndpointChanged -= OnEndpointChanged;
     }
 
 }

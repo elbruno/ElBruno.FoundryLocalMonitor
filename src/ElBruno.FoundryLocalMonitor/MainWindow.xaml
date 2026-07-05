@@ -50,7 +50,20 @@
             <TabItem Header="Status">
                 <StackPanel Margin="20">
                     <TextBlock Text="Service Status" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,8"/>
-                    <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="#A6ADC8" Margin="0,0,0,12"/>
+                    <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="#A6ADC8" Margin="0,0,0,4"/>
+                    <TextBlock Text="{Binding EndpointText}" FontSize="12" Foreground="#89B4FA"
+                               FontFamily="Consolas" Margin="0,0,0,12">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServiceRunning}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <Button Content="Refresh" Command="{Binding RefreshCommand}"
                             Width="100" HorizontalAlignment="Left"
                             Background="#89B4FA" Foreground="#1E1E2E" BorderThickness="0"

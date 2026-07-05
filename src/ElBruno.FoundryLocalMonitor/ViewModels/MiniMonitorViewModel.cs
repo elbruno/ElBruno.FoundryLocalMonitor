@@ -99,8 +99,8 @@ public partial class MiniMonitorViewModel : ObservableObject, IDisposable
 
     private static string FormatEndpoint(string url)
     {
-        // Show just host:port — strip scheme and trailing slash
-        try { return new Uri(url).Authority; }
+        // Show scheme + host:port (e.g. http://127.0.0.1:52148)
+        try { var uri = new Uri(url); return $"{uri.Scheme}://{uri.Authority}"; }
         catch { return url; }
     }
 

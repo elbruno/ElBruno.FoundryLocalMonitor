@@ -23,20 +23,29 @@ public class FoundryCliRunner
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                // Ensure emoji / Unicode characters in CLI output are read correctly
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8,
             };
 
             using var process = Process.Start(psi);
             if (process == null) return null;
 
-            var output = await process.StandardOutput.ReadToEndAsync(ct);
+            // Read both streams concurrently — foundry may write to either stdout or stderr
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+            var stderrTask = process.StandardError.ReadToEndAsync(ct);
             await process.WaitForExitAsync(ct);
-            return output;
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            // Merge; return empty string (not null) when CLI runs but produces no output
+            return stdout + stderr;
         }
         catch (Exception ex) when (ex is FileNotFoundException or Win32Exception)
         {
             _logger?.LogWarning("foundry CLI not found on PATH");
-            return null;
+            return null;   // null == CLI not on PATH
         }
         catch (Exception ex)
         {
