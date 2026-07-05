@@ -110,6 +110,22 @@ function Wait-For([string]$Description, [int]$TimeoutSec, [scriptblock]$Conditio
 
 function Get-ServiceEndpoint {
     try {
+        # Fast path: look for Inference.Service.Agent (the foundry daemon) directly.
+        # This avoids calling 'foundry service status' which blocks for 5-10s when
+        # the daemon is busy doing EP autoregistration or model loading.
+        $proc = Get-Process -Name "Inference.Service.Agent" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($proc) {
+            $conn = Get-NetTCPConnection -OwningProcess $proc.Id -State Listen `
+                        -LocalAddress 127.0.0.1 -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+            if ($conn) {
+                return "http://127.0.0.1:$($conn.LocalPort)"
+            }
+        }
+    } catch { }
+
+    # Slow fallback: parse 'foundry service status' output (may take 5-10s when busy)
+    try {
         $raw = & foundry service status 2>&1 | Out-String
         if ($raw -match 'http://[\d.]+:\d+') {
             $full = $Matches[0]
@@ -217,13 +233,15 @@ $ChatProc   = [System.Diagnostics.Process]::Start($psi)
 $ChatOutput = [System.Text.StringBuilder]::new()
 $ChatError  = [System.Text.StringBuilder]::new()
 
-# Drain stdout AND stderr in background so pipes never block the process
+# Drain stdout AND stderr in background so pipes never block the process.
+# NOTE: Do NOT call Write-Host from Task.Run threads in PS5.1 -- it causes
+# console-lock deadlocks with the main thread. Collect output silently here;
+# the main thread prints a summary after the process exits.
 $null = [System.Threading.Tasks.Task]::Run([System.Action]{
     while ($true) {
         $line = $ChatProc.StandardOutput.ReadLine()
         if ($null -eq $line) { break }
         $ChatOutput.AppendLine($line) | Out-Null
-        Write-Host "    [chat] $line" -ForegroundColor DarkGray
     }
 })
 $null = [System.Threading.Tasks.Task]::Run([System.Action]{
@@ -231,7 +249,6 @@ $null = [System.Threading.Tasks.Task]::Run([System.Action]{
         $line = $ChatProc.StandardError.ReadLine()
         if ($null -eq $line) { break }
         $ChatError.AppendLine($line) | Out-Null
-        Write-Host "    [chat ERR] $line" -ForegroundColor DarkYellow
     }
 })
 
@@ -276,7 +293,9 @@ $loadedModels = Wait-For -Description "model '$ModelAlias' to appear in /v1/mode
     }
     if (-not $Script:endpoint) { return $null }
     $models = Get-LoadedModels $Script:endpoint
-    if ($models -and $models.Count -gt 0) { return $models }
+    # PS5.1 returns 1-element arrays as PSCustomObject (no .Count).
+    # Use plain truthy check: empty array @() is $false, object/array is $true.
+    if ($models) { return $models }
     return $null
 }
 
@@ -319,7 +338,9 @@ Write-Step "Checking /v1/models is empty after unload (up to 15s)..."
 if ($Script:endpoint) {
     $unloaded = Wait-For -Description "model list to become empty" -TimeoutSec 45 -Condition {
         $models = Get-LoadedModels $Script:endpoint
-        if ($null -eq $models -or $models.Count -eq 0) { return $true }
+        # PS5.1 returns 1-element arrays as PSCustomObject (no .Count).
+        # Models empty when: Get-LoadedModels returns @() (empty = $false in PS5.1)
+        if (-not $models) { return $true }
         return $null
     }
 
@@ -346,9 +367,9 @@ if ($Script:endpoint) {
 # TEST 5 -- Service stop detection
 # ============================================================================
 Write-Section "TEST 5 -- Service stop detection"
-Write-Step "Checking 'foundry service status' is stopped (up to 20s)..."
+Write-Step "Checking 'foundry service status' is stopped (up to 60s)..."
 
-$stopped = Wait-For -Description "Foundry service to stop" -TimeoutSec 30 -Condition {
+$stopped = Wait-For -Description "Foundry service to stop" -TimeoutSec 60 -Condition {
     $ep = Get-ServiceEndpoint
     if ($null -eq $ep) { return $true }
     return $null

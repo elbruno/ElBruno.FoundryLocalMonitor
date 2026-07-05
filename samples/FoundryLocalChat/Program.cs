@@ -72,35 +72,73 @@ Ok($"Service running at {endpoint}");
 Hint("-> Monitor should now show the service URL.");
 await Pause(10, "Giving the monitor time to detect the service");
 
-// ── STEP 3: Load model ────────────────────────────────────────────────────────
-Step(3, 6, $"Loading model '{modelAlias}'...");
-var catalog = await mgr.GetCatalogAsync();
-var model = await catalog.GetModelAsync(modelAlias);
-if (model is null)
+// ── STEP 3: Load model via CLI ────────────────────────────────────────────────
+// We use the CLI instead of the SDK's DownloadAsync+LoadAsync because the SDK
+// triggers GPU EP (CUDA/TensorRT) package registration on every invocation,
+// which can take 10-22 minutes. The CLI uses cached state and loads in ~30s.
+Step(3, 6, $"Loading model '{modelAlias}' via CLI...");
+Console.WriteLine($"  Running: foundry model load {modelAlias}");
+RunCli("foundry", $"model load {modelAlias}", timeoutMs: 1_800_000);  // 30 min max
+Console.WriteLine("  CLI model load command completed.");
+
+// Poll /v1/models until the model appears (up to 30 minutes — EP autoregistration
+// can take 10-22 minutes on first run; cached runs are faster).
+Console.WriteLine("  Polling /v1/models for loaded model...");
+string? modelId = null;
+var pollDeadline = DateTime.UtcNow.AddSeconds(1800);
+while (DateTime.UtcNow < pollDeadline)
 {
-    Warn($"Model '{modelAlias}' not found. Available models:");
-    var all = await catalog.ListModelsAsync();
-    foreach (var m in all.Take(10)) Console.WriteLine($"  - {m.Alias}");
-    Console.Error.WriteLine($"Set FOUNDRY_DEMO_MODEL env var and re-run.");
-    await mgr.StopWebServiceAsync(); mgr.Dispose(); return;
+    try
+    {
+        // Re-read the current endpoint each poll.
+        // Use a direct process-table lookup to avoid the slow 'foundry service status'
+        // CLI call (which can block 5-10s when EP autoregistration is running).
+        var inferenceProc = System.Diagnostics.Process.GetProcessesByName("Inference.Service.Agent")
+                                .FirstOrDefault();
+        if (inferenceProc is not null)
+        {
+            // Use netstat to find the listening port for this PID (Windows).
+            var netOut = RunCliCapture("netstat", $"-ano", timeoutMs: 3_000);
+            var pidStr = inferenceProc.Id.ToString();
+            foreach (var line in netOut.Split('\n'))
+            {
+                if (!line.Contains(pidStr)) continue;
+                if (!line.Contains("LISTENING")) continue;
+                var parts = line.Split(new char[]{' ', '\t'}, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && parts[1].StartsWith("127.0.0.1:"))
+                {
+                    endpoint = $"http://{parts[1]}";
+                    break;
+                }
+            }
+        }
+
+        using var hc = new HttpClient { BaseAddress = new Uri(endpoint), Timeout = TimeSpan.FromSeconds(5) };
+        var json = await hc.GetStringAsync("/v1/models");
+        var doc = System.Text.Json.JsonDocument.Parse(json);
+        var data = doc.RootElement.GetProperty("data");
+        if (data.GetArrayLength() > 0)
+        {
+            modelId = data[0].GetProperty("id").GetString();
+            Ok($"Model loaded — id: {modelId}");
+            break;
+        }
+    }
+    catch { }
+    Console.Write($"\r  Still waiting... {(int)(pollDeadline - DateTime.UtcNow).TotalSeconds}s remaining   ");
+    await Task.Delay(3000);
 }
+Console.WriteLine();
 
-// Skip DownloadAsync if the model is already in the local cache.
-// DownloadAsync also downloads large execution provider packages (GPU drivers)
-// which can take 5-10 minutes on first run. On subsequent runs the model and
-// EPs are already cached, so we go straight to LoadAsync.
-Console.WriteLine("  Checking model cache...");
-await model.DownloadAsync(pct =>
+if (modelId is null)
 {
-    var p = (int)Math.Floor(pct);
-    Console.Error.Write($"\r  Downloading... {p,3}%  ");
-});
-Console.Error.WriteLine();
-Console.WriteLine("  Model ready.");
-
-Console.WriteLine("  Loading model into memory...");
-await model.LoadAsync();
-Ok($"Model '{model.Alias}' ({model.Id}) loaded");
+    Console.Error.WriteLine("  [ERROR] Model never appeared in /v1/models. Stopping.");
+    RunCli("foundry", "service stop", timeoutMs: 15_000);
+    await mgr.StopWebServiceAsync().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+    mgr.Dispose();
+    Environment.Exit(1);
+    return;
+}
 
 Hint("-> Monitor should now show the model name and device.");
 await Pause(10, "Giving the monitor time to detect the loaded model");
@@ -137,7 +175,7 @@ foreach (var (q, i) in questions.Select((q, i) => (q, i)))
     {
         using var chatRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
         {
-            Content = JsonContent.Create(new { model = model.Id, messages, stream = true, max_tokens = 200 })
+            Content = JsonContent.Create(new { model = modelId, messages, stream = true, max_tokens = 200 })
         };
         using var response = await http.SendAsync(chatRequest, HttpCompletionOption.ResponseHeadersRead);
         await using var stream = await response.Content.ReadAsStreamAsync();
@@ -176,17 +214,11 @@ Ok("Chat demo complete");
 await Pause(5, "Pause before unloading");
 
 // ── STEP 5: Unload model ──────────────────────────────────────────────────────
-Step(5, 6, $"Unloading model '{model.Alias}'...");
+Step(5, 6, $"Unloading model '{modelAlias}'...");
 
-// CLI first: removes the model from the daemon's active list immediately.
-// The SDK's UnloadAsync() releases the app's reference but the daemon may keep
-// the model loaded for other clients.
-RunCli("foundry", $"model unload {modelAlias}");
+// CLI unload removes the model from the daemon's active list.
+RunCli("foundry", $"model unload {modelAlias}", timeoutMs: 15_000);
 Ok("Model unloaded (CLI)");
-
-// SDK unload with timeout — if the daemon is already unloaded it returns fast.
-try { await model.UnloadAsync().WaitAsync(TimeSpan.FromSeconds(15)); Ok("Model unloaded (SDK)"); }
-catch (TimeoutException) { Console.Error.WriteLine("  [warn] UnloadAsync timed out — continuing"); }
 
 Hint("-> Monitor should now show: no models loaded.");
 await Pause(8, "Giving the monitor time to detect the unload");
@@ -237,23 +269,39 @@ static void Ok(string msg)
     Console.WriteLine($"  [OK] {msg}");
 }
 
-static void Warn(string msg) => Console.Error.WriteLine($"  [WARN] {msg}");
-
 static void Hint(string msg) => Console.WriteLine($"  --> {msg}");
 
-static void RunCli(string exe, string args)
+static void RunCli(string exe, string args, int timeoutMs = 15_000)
 {
     try
     {
         var psi = new ProcessStartInfo(exe, args)
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
         using var p = Process.Start(psi);
-        p?.WaitForExit(15000);
+        p?.WaitForExit(timeoutMs);
     }
     catch (Exception ex)
     {
         Console.Error.WriteLine($"[cli warn] {exe} {args}: {ex.Message}");
     }
+}
+
+static string RunCliCapture(string exe, string args, int timeoutMs = 10_000)
+{
+    try
+    {
+        var psi = new ProcessStartInfo(exe, args)
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        using var p = Process.Start(psi)!;
+        var sb = new System.Text.StringBuilder();
+        p.OutputDataReceived += (_, e) => { if (e.Data is not null) sb.AppendLine(e.Data); };
+        p.ErrorDataReceived  += (_, e) => { if (e.Data is not null) sb.AppendLine(e.Data); };
+        p.BeginOutputReadLine();
+        p.BeginErrorReadLine();
+        p.WaitForExit(timeoutMs);
+        return sb.ToString();
+    }
+    catch { return string.Empty; }
 }
 
 static async Task Pause(int seconds, string reason)
