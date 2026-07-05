@@ -22,6 +22,10 @@ public class FoundryPollingService : IFoundryService, IDisposable
     private bool _disposed;
     private bool _firstPoll = true;
 
+    // Default SDK internal server port (FoundryLocalManager.StartWebServiceAsync).
+    // Apps using the SDK directly load models here, invisible to the foundry CLI.
+    private const string SdkInternalUrl = "http://127.0.0.1:55588";
+
     public bool IsServiceRunning => _isServiceRunning;
     public bool IsCliInstalled => _isCliInstalled;
     public string? CurrentEndpoint => _currentEndpoint;
@@ -113,23 +117,34 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // 1. HTTP: GET /v1/models — returns ONLY loaded/registered models (data:[] when nothing loaded)
-        //    This is the authoritative source; /foundry/list returns ALL catalog models.
+        // 1. HTTP: GET /v1/models at the daemon endpoint — CLI-managed models
         var httpModels = await _httpClient.GetLoadedModelsAsync();
 
-        // 2. CLI: foundry service ps — fallback / cross-reference
+        // 2. SDK internal port: apps using FoundryLocalManager SDK load models here,
+        //    which are NOT visible via the foundry CLI or the daemon's /v1/models.
+        var sdkModels = await _httpClient.GetLoadedModelsFromUrlAsync(SdkInternalUrl);
+
+        // 3. CLI: foundry service ps — fallback / cross-reference
         var cliOutput = await _cliRunner.RunAsync("service ps");
         var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
 
-        // Merge: union by ModelId so both sources contribute
-        if (httpModels.Count == 0 && (cliModels == null || cliModels.Count == 0)) return [];
-        if (httpModels.Count == 0) return cliModels!;
-        if (cliModels == null || cliModels.Count == 0) return httpModels;
+        // Merge: union by ModelId so all sources contribute
+        if (httpModels.Count == 0 && sdkModels.Count == 0 && (cliModels == null || cliModels.Count == 0))
+            return [];
 
         var merged = httpModels.ToList();
         var existingIds = merged.Select(m => m.ModelId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var m in cliModels.Where(m => !existingIds.Contains(m.ModelId)))
+
+        foreach (var m in sdkModels.Where(m => !existingIds.Contains(m.ModelId)))
+        {
             merged.Add(m);
+            existingIds.Add(m.ModelId);
+        }
+
+        if (cliModels != null)
+            foreach (var m in cliModels.Where(m => !existingIds.Contains(m.ModelId)))
+                merged.Add(m);
+
         return merged;
     }
 
@@ -168,6 +183,17 @@ public class FoundryPollingService : IFoundryService, IDisposable
                 UpdateEndpoint(cliStatus.Endpoint);                           // full URL (with path) for display
             }
             return cliStatus;
+        }
+
+        // SDK-managed apps (e.g. FoundryLocalProxy) start an internal REST server at port 55588
+        // without going through the foundry CLI — check that port before falling back.
+        var sdkModels = await _httpClient.GetLoadedModelsFromUrlAsync(SdkInternalUrl);
+        if (sdkModels.Count > 0)
+        {
+            var sdkUrl = $"{SdkInternalUrl}/v1/models";
+            _httpClient.SetBaseUrl(SdkInternalUrl);
+            UpdateEndpoint(sdkUrl);
+            return new FoundryServiceStatus(true, sdkUrl, null);
         }
 
         // CLI unavailable or not running — try HTTP port scan

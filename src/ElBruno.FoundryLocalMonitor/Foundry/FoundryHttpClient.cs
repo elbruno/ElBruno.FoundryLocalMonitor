@@ -13,8 +13,9 @@ public class FoundryHttpClient
     private readonly ILogger<FoundryHttpClient>? _logger;
     private string _baseUrl = "http://localhost:5273";
 
-    // Ports Foundry Local is known to use (dynamic, but these cover common cases)
-    private static readonly int[] KnownPorts = [5273, 5101, 5102, 5103, 5000, 5001, 11434, 8080];
+    // Ports Foundry Local is known to use (dynamic, but these cover common cases).
+    // 55588 is the SDK's default internal REST server port (FoundryLocalManager).
+    private static readonly int[] KnownPorts = [55588, 5273, 5101, 5102, 5103, 5000, 5001, 11434, 8080];
 
     public FoundryHttpClient(HttpClient http, ILogger<FoundryHttpClient>? logger = null)
     {
@@ -83,15 +84,26 @@ public class FoundryHttpClient
     {
         // /v1/models returns ONLY loaded/registered models (data:[] when nothing loaded).
         // /foundry/list returns ALL catalog models (156 KB+) — do NOT use for loaded detection.
+        return await GetLoadedModelsFromUrlAsync(_baseUrl, ct);
+    }
+
+    /// <summary>
+    /// Queries /v1/models at a specific base URL. Returns empty list on any error.
+    /// Use this to probe alternate endpoints (e.g., SDK internal server at port 55588).
+    /// </summary>
+    public async Task<IReadOnlyList<FoundryModel>> GetLoadedModelsFromUrlAsync(string baseUrl, CancellationToken ct = default)
+    {
         try
         {
-            var json = await _http.GetStringAsync($"{_baseUrl}/v1/models", ct);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            var json = await _http.GetStringAsync($"{baseUrl.TrimEnd('/')}/v1/models", cts.Token);
             var response = JsonSerializer.Deserialize<V1ModelsResponse>(json, JsonOptions);
             return response?.Data?.Select(m => ParseModel(m)).ToList() ?? [];
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "Could not get loaded models from /v1/models");
+            _logger?.LogDebug(ex, "Could not get loaded models from {BaseUrl}/v1/models", baseUrl);
             return [];
         }
     }
