@@ -1,16 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    FoundryLocalChat — E2E test client for Foundry Local Monitor.
+
+    Simulates the same scenario as FoundryLocalProxy (the GitHub Copilot BYOK proxy):
+      • Starts the Foundry Local web service (dynamic port)
+      • Loads a model into memory
+      • Sends a few automated chat requests
+      • Unloads the model and stops the service
+
+    The Foundry Local Monitor should detect each state transition in real-time.
+
+    Uses Microsoft.AI.Foundry.Local (cross-platform) — same as FoundryLocalProxy.
+    RuntimeIdentifier defaults to the current SDK RID so 'dotnet run' works without flags.
+  -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Resolves the correct native ONNX Runtime assets (CUDA, QNN, etc.) for this machine -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)'==''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FoundryLocalChat</RootNamespace>
     <AssemblyName>FoundryLocalChat</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <!-- WinML variant: hardware-accelerated execution providers (GPU/NPU) on Windows -->
-    <PackageReference Include="Microsoft.AI.Foundry.Local.WinML" Version="1.2.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <!-- Cross-platform SDK — same package used by FoundryLocalProxy -->
+    <PackageReference Include="Microsoft.AI.Foundry.Local" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="*" />
   </ItemGroup>
 </Project>

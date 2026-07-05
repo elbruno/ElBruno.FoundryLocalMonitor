@@ -1,14 +1,25 @@
-# FoundryLocalChat — E2E Monitor Test Sample
+# FoundryLocalChat — E2E Monitor Test Client
 
-A minimal C# console app that uses the **Foundry Local SDK** to start a local AI service, load a model, and run an interactive chat. Use it to verify the **Foundry Local Monitor** detects the service and model correctly.
+A C# console app that simulates the same scenario as the
+[FoundryLocalProxy](https://github.com/elbruno/ElBruno.CopilotHarness/tree/main/src/proxies/FoundryLocalProxy)
+(a GitHub Copilot BYOK proxy backed by Foundry Local), but as an automated demo.
 
-## How it works
+Use it to verify the **Foundry Local Monitor** detects every state transition
+in real-time without any user input.
 
-1. **Initializes** `FoundryLocalManager` (the SDK singleton)
-2. **Starts the web server** via `mgr.StartWebServerAsync()` → exposes an OpenAI-compatible HTTP endpoint
-3. **Loads `phi-3.5-mini`** (downloads it first if not cached)
-4. **Runs an interactive chat loop** — type messages, get streamed responses
-5. **Shuts down cleanly** on empty input or Ctrl+C
+## E2E Test Flow
+
+```
+[Step 1] SDK init          → monitor: "Checking…"
+[Step 2] Web service start → monitor: service URL  (http://127.0.0.1:{port})
+[Step 3] Model loaded      → monitor: model name + device
+[Step 4] Chat demo (auto)  → model stays loaded, monitor shows it
+[Step 5] Model unloaded    → monitor: "No models loaded"
+[Step 6] Service stopped   → monitor: "Service stopped"
+```
+
+Each step has a deliberate pause so the monitor has time to poll and display
+the new state before the app moves on.
 
 ## Running the sample
 
@@ -17,30 +28,29 @@ cd samples/FoundryLocalChat
 dotnet run
 ```
 
+Override the model (must be in local cache or downloadable):
+
+```powershell
+$env:FOUNDRY_DEMO_MODEL = "phi-4-mini"
+dotnet run
+```
+
 ## What the Monitor should show
 
-Once the app reaches step 2 you should see in **Foundry Local Monitor**:
-
-| Field    | Value                              |
-|----------|------------------------------------|
-| Status   | Running                            |
-| Endpoint | `http://127.0.0.1:<port>`          |
-| Model    | phi-3.5-mini (loaded)              |
-
-This confirms the monitor's endpoint URL parsing and model detection work end-to-end.
+| Step | Monitor status | Monitor model |
+|------|---------------|---------------|
+| After step 2 | `Running` — `http://127.0.0.1:{port}` | — |
+| After step 3 | `Running` | `qwen2.5-coder-0.5b [GPU]` |
+| After step 5 | `Running` | *(empty)* |
+| After step 6 | `Stopped` | — |
 
 ## Requirements
 
-- Windows 10 (26100+) for WinML hardware acceleration
 - .NET 10 SDK
-- Internet access (first run downloads the model ~1–4 GB depending on variant)
+- Internet access on first run (downloads model weights — skipped when cached)
+- No CLI required — the SDK manages the Foundry Local daemon automatically
 
-## Changing the model
+## Package used
 
-Edit `Program.cs` line:
-```csharp
-const string ModelAlias = "phi-3.5-mini";
-```
-
-Common alternatives: `phi-4-mini`, `phi-3-mini-4k`, `mistral-7b`.
-Run `foundry model list` to see all available models.
+`Microsoft.AI.Foundry.Local` — the cross-platform variant (same as FoundryLocalProxy).
+Handles daemon, model downloads, hardware detection, and the internal REST server.

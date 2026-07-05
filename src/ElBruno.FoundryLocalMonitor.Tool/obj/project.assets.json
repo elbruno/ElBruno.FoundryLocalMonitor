@@ -12,7 +12,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "0.5.11",
+    "version": "0.5.13",
     "restore": {
       "projectUniqueName": "C:\\src\\ElBruno.FoundryLocalMonitor\\src\\ElBruno.FoundryLocalMonitor.Tool\\ElBruno.FoundryLocalMonitor.Tool.csproj",
       "projectName": "ElBruno.FoundryLocalMonitor",

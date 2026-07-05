@@ -81,22 +81,48 @@ public class FoundryHttpClient
 
     public async Task<IReadOnlyList<FoundryModel>> GetLoadedModelsAsync(CancellationToken ct = default)
     {
-        // Only use /foundry/list — /v1/models lists ALL catalog models, not just loaded ones
+        // /v1/models returns ONLY loaded/registered models (data:[] when nothing loaded).
+        // /foundry/list returns ALL catalog models (156 KB+) — do NOT use for loaded detection.
         try
         {
-            var json = await _http.GetStringAsync($"{_baseUrl}/foundry/list", ct);
-            var items = JsonSerializer.Deserialize<List<FoundryModelDto>>(json, JsonOptions);
-            return items?.Select(m => new FoundryModel(
-                m.ModelId ?? m.Alias ?? "",
-                m.Alias ?? m.ModelId ?? "",
-                m.Device,
-                true)).ToList() ?? [];
+            var json = await _http.GetStringAsync($"{_baseUrl}/v1/models", ct);
+            var response = JsonSerializer.Deserialize<V1ModelsResponse>(json, JsonOptions);
+            return response?.Data?.Select(m => ParseModel(m)).ToList() ?? [];
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "Could not get loaded models from /foundry/list");
+            _logger?.LogDebug(ex, "Could not get loaded models from /v1/models");
             return [];
         }
+    }
+
+    /// <summary>
+    /// Parses a /v1/models entry into a FoundryModel.
+    /// Model IDs look like: "qwen2.5-coder-0.5b-instruct-trtrtx-gpu:2"
+    /// Format: {alias}-{device-suffix}:{version}
+    /// </summary>
+    private static FoundryModel ParseModel(V1ModelEntry m)
+    {
+        var fullId = m.Id ?? "";
+        // Strip version suffix (:N)
+        var noVersion = fullId.Contains(':') ? fullId[..fullId.LastIndexOf(':')] : fullId;
+
+        // Known device suffixes (longest first to avoid partial matches)
+        string[] deviceSuffixes = ["-trtrtx-gpu", "-cuda-gpu", "-generic-gpu", "-generic-cpu",
+                                   "-winml-directml", "-winml-cpu", "-directml-gpu", "-cpu", "-gpu"];
+        string alias = noVersion;
+        string? device = null;
+        foreach (var suffix in deviceSuffixes)
+        {
+            if (noVersion.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                alias = noVersion[..^suffix.Length];
+                device = suffix.Contains("cpu", StringComparison.OrdinalIgnoreCase) ? "CPU" : "GPU";
+                break;
+            }
+        }
+
+        return new FoundryModel(fullId, alias, device, true);
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -105,9 +131,12 @@ public class FoundryHttpClient
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private record FoundryModelDto(
-        [property: JsonPropertyName("modelId")] string? ModelId,
-        [property: JsonPropertyName("alias")] string? Alias,
-        [property: JsonPropertyName("device")] string? Device
+    private record V1ModelsResponse(
+        [property: JsonPropertyName("data")] List<V1ModelEntry>? Data
+    );
+
+    private record V1ModelEntry(
+        [property: JsonPropertyName("id")] string? Id,
+        [property: JsonPropertyName("owned_by")] string? OwnedBy
     );
 }

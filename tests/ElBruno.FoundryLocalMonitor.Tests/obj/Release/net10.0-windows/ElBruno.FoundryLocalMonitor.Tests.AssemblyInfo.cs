@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ElBruno.FoundryLocalMonitor.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4b9518a857360cb34bf9d9cb1e5cb50c036aa296")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+59449f538063398658b7ab2f54e61a23a5824cf5")]
 [assembly: System.Reflection.AssemblyProductAttribute("ElBruno.FoundryLocalMonitor.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ElBruno.FoundryLocalMonitor.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -113,20 +113,22 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // 1. CLI: foundry service ps — authoritative for explicitly loaded models
+        // 1. HTTP: GET /v1/models — returns ONLY loaded/registered models (data:[] when nothing loaded)
+        //    This is the authoritative source; /foundry/list returns ALL catalog models.
+        var httpModels = await _httpClient.GetLoadedModelsAsync();
+
+        // 2. CLI: foundry service ps — fallback / cross-reference
         var cliOutput = await _cliRunner.RunAsync("service ps");
         var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
 
-        // 2. HTTP: /foundry/list — catches on-demand loaded models (e.g. loaded via API/proxy)
-        var httpModels = await _httpClient.GetLoadedModelsAsync();
-
         // Merge: union by ModelId so both sources contribute
+        if (httpModels.Count == 0 && (cliModels == null || cliModels.Count == 0)) return [];
+        if (httpModels.Count == 0) return cliModels!;
         if (cliModels == null || cliModels.Count == 0) return httpModels;
-        if (httpModels.Count == 0) return cliModels;
 
-        var merged = cliModels.ToList();
+        var merged = httpModels.ToList();
         var existingIds = merged.Select(m => m.ModelId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var m in httpModels.Where(m => !existingIds.Contains(m.ModelId)))
+        foreach (var m in cliModels.Where(m => !existingIds.Contains(m.ModelId)))
             merged.Add(m);
         return merged;
     }

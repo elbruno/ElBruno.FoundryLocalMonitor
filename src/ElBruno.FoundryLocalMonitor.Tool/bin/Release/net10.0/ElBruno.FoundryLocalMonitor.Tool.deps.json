@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v10.0": {
-      "ElBruno.FoundryLocalMonitor.Tool/0.5.8": {
+      "ElBruno.FoundryLocalMonitor.Tool/0.5.13": {
         "runtime": {
           "ElBruno.FoundryLocalMonitor.Tool.dll": {}
         }
@@ -14,7 +14,7 @@
     }
   },
   "libraries": {
-    "ElBruno.FoundryLocalMonitor.Tool/0.5.8": {
+    "ElBruno.FoundryLocalMonitor.Tool/0.5.13": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
