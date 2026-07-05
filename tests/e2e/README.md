@@ -1,8 +1,134 @@
 # E2E Tests — Foundry Local Monitor
 
-Automated end-to-end tests that verify **Foundry Local Monitor** correctly
-detects service start, model load, model unload, and service stop — the full
-lifecycle of a Foundry Local-backed application.
+Automated end-to-end tests that verify **Foundry Local Monitor** correctly detects service start, model load, model unload, and service stop — from both a C# and a Python client simultaneously.
+
+## Tests
+
+### `Run-E2ETest.ps1` — Single-client test (C#)
+
+Runs the C# `FoundryLocalChat` sample app and verifies the monitor detects all 6 lifecycle steps.
+
+```powershell
+cd tests/e2e
+.\Run-E2ETest.ps1 -LaunchMonitor
+```
+
+### `Run-E2EMultiClient.ps1` — Multi-client test (C# + Python)
+
+Runs both the C# and Python sample apps **simultaneously** and verifies the monitor discovers both SDK endpoints and detects model events from each.
+
+```powershell
+cd tests/e2e
+.\Run-E2EMultiClient.ps1 -LaunchMonitor
+```
+
+## What is being tested?
+
+### Single-client flow
+
+```
+[FoundryLocalChat (C#)]                    [Foundry Local Monitor]
+        │                                           │
+        ├─ SDK init                                 │
+        ├─ StartWebServiceAsync() → port 55588      ├─ Discovers port 55588 ✓
+        ├─ foundry model load qwen2.5-coder-0.5b    ├─ GET /v1/models → [model] ✓
+        ├─ Chat (3 questions)                       │
+        ├─ foundry model unload                     ├─ GET /v1/models → [] ✓
+        └─ Service stop → port 55588 closes         ├─ Endpoint gone ✓
+```
+
+### Multi-client flow
+
+```
+[FoundryLocalChat (C#, port 55588)]   [FoundryLocalChatPy (Python, port 55589)]
+        │                                          │
+        ├─ SDK init (C# SDK)                       ├─ SDK init (Python SDK)
+        ├─ Service → port 55588                    ├─ Service → port 55589
+        │              [Monitor discovers both ports simultaneously]
+        ├─ Load model A                            ├─ Load model B
+        │              [Monitor shows models from both clients]
+        ├─ Unload A                                ├─ Unload B
+        └─ Stop                                    └─ Stop
+                       [Monitor: no active endpoints]
+```
+
+## Discovery mechanism
+
+The monitor's parallel port scanner (`FoundryEndpointDiscovery`) fans out `GET /v1/models` to all `127.0.0.1` listeners simultaneously (800ms timeout each). Any port responding with `{"object":"list"}` is a Foundry endpoint.
+
+This is why both clients are discovered without any manual configuration — port 55589 (Python) is discovered the same way as port 55588 (C#). See [docs/discovery.md](../../docs/discovery.md) for full details.
+
+## Parameters
+
+### `Run-E2ETest.ps1`
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-ModelAlias` | `qwen2.5-coder-0.5b` | Model to load |
+| `-ServiceStartTimeout` | `90` | Seconds to wait for service start |
+| `-ModelLoadTimeout` | `120` | Seconds to wait for model |
+| `-LaunchMonitor` | off | Launch WPF monitor for visual E2E |
+| `-SkipBuild` | off | Skip `dotnet build` |
+
+### `Run-E2EMultiClient.ps1`
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-ModelAlias` | `qwen2.5-coder-0.5b` | Model used by both clients |
+| `-MonitorWait` | `12` | Seconds to pause between steps |
+| `-ServiceStartTimeout` | `90` | Seconds to wait for service |
+| `-ModelLoadTimeout` | `120` | Seconds to wait for model |
+| `-LaunchMonitor` | off | Launch WPF monitor for visual E2E |
+| `-SkipBuild` | off | Skip `dotnet build` |
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | All assertions passed |
+| `1` | One or more assertions failed |
+
+## Output files
+
+| File | Contents |
+|------|----------|
+| `last-run-results.txt` | Single-client test results |
+| `last-multi-client-results.txt` | Multi-client test results |
+| `e2e-csharp.log` | C# client console output |
+| `e2e-python.log` | Python client console output |
+
+## Prerequisites
+
+- **Foundry Local CLI** — `foundry --version` must work
+  Install: https://aka.ms/foundrylocal
+- **.NET 10 SDK**
+- **Python 3.11+** with `pip install foundry-local-sdk openai`
+- **Model cached** — run `foundry model list` to confirm `qwen2.5-coder-0.5b` is available
+- **Windows** — Foundry Local Monitor is Windows-only (WPF)
+
+## Why there is no CI workflow
+
+Foundry Local requires the Foundry CLI, GPU drivers, and locally cached model weights (1–4 GB per model). None of these exist on any standard CI runner. **This test is a local developer tool** — run it manually before publishing a new release.
+
+## Troubleshooting
+
+**`foundry CLI not found`**
+→ Install Foundry Local: https://aka.ms/foundrylocal
+
+**C# service never starts**
+→ Try `.\Run-E2ETest.ps1 -ServiceStartTimeout 180`
+
+**Python service never starts**
+→ Run `python app.py` from `samples/FoundryLocalChatPy/` directly to see errors
+→ Check `pip show foundry-local-sdk` confirms package is installed
+
+**Model never loads**
+→ Pre-download: `foundry model download qwen2.5-coder-0.5b`
+→ Re-run with `-ModelLoadTimeout 300`
+
+**Monitor shows nothing**
+→ Run with `-LaunchMonitor` and wait 30s for discovery cycle
+→ Ensure `foundry` CLI is in `PATH`
 
 ## What is being tested?
 
