@@ -185,9 +185,7 @@
                                             </DockPanel>
                                             <TextBlock Text="{Binding PortsLabel, StringFormat='Ports: {0}'}"
                                                        FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,4,0,0"/>
-                                            <TextBlock Text="{Binding ModelCount, StringFormat='Models loaded: {0}'}"
-                                                       FontSize="11" Foreground="{DynamicResource SubtextBrush}"/>
-                                            <DockPanel Margin="0,2,0,0">
+                                             <DockPanel Margin="0,2,0,0">
                                                 <Button DockPanel.Dock="Right"
                                                         Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                         CommandParameter="{Binding ProcessPath}"
@@ -204,6 +202,29 @@
                                                            ToolTip="{Binding ProcessPath}"
                                                            Text="{Binding ProcessPath, TargetNullValue='path unavailable'}"/>
                                             </DockPanel>
+                                            <!-- Model list — flat ItemsControl, no BoolToVisibility, no Run bindings -->
+                                            <Rectangle Height="1" Fill="{DynamicResource SurfaceMidBrush}" Margin="0,8,0,4"/>
+                                            <ItemsControl ItemsSource="{Binding Models}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <DockPanel Margin="0,3,0,0">
+                                                            <Border DockPanel.Dock="Right"
+                                                                    Background="{Binding Device, Converter={StaticResource DeviceToColor}}"
+                                                                    CornerRadius="2" Padding="5,1" Margin="6,0,0,0"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock FontSize="9" Foreground="White" FontWeight="SemiBold"
+                                                                           Text="{Binding Device, TargetNullValue='?'}"/>
+                                                            </Border>
+                                                            <TextBlock FontSize="11"
+                                                                       Foreground="{DynamicResource SubtextBrush}"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ToolTip="{Binding ModelId}"
+                                                                       Text="{Binding Alias}"/>
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

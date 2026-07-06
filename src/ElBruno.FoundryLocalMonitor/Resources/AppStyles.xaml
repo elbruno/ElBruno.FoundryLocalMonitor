@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:ElBruno.FoundryLocalMonitor.Converters">
 
     <ResourceDictionary.MergedDictionaries>
         <!-- Active theme palette — swapped at runtime by ThemeManager -->
@@ -7,6 +8,7 @@
     </ResourceDictionary.MergedDictionaries>
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+    <converters:DeviceToColorConverter x:Key="DeviceToColor"/>
 
     <!-- Structural styles — use DynamicResource so live theme switching works -->
     <Style TargetType="TextBlock">
