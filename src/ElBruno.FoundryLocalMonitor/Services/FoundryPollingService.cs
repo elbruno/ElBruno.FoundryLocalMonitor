@@ -214,8 +214,16 @@ public class FoundryPollingService : IFoundryService, IDisposable
             }
 
             foreach (var m in models)
-                if (seen.Add(m.ModelId))
-                    merged.Add(m with { SourceEndpoint = $"{ep.ProcessName ?? ep.BaseUrl} :{ep.Port}" });
+            {
+                // Key on (port, modelId) — same model on different endpoints = different rows
+                var rowKey = $"{ep.Port}:{m.ModelId}";
+                if (seen.Add(rowKey))
+                {
+                    var pidLabel = ep.Pid.HasValue ? $" [PID {ep.Pid}]" : "";
+                    var source = $"{ep.ProcessName ?? ep.BaseUrl}:{ep.Port}{pidLabel}";
+                    merged.Add(m with { SourceEndpoint = source });
+                }
+            }
         }
 
         // CLI fallback for models not visible via HTTP (e.g., CLI-managed sessions)
