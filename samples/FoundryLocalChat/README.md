@@ -11,11 +11,11 @@ in real-time without any user input.
 
 ```
 [Step 1] SDK init          → monitor: "Checking…"
-[Step 2] Web service start → monitor: service URL  (http://127.0.0.1:{port})
-[Step 3] Model loaded      → monitor: model name + device
+[Step 2] Web service start → monitor: new instance card in Status tab (http://127.0.0.1:{port})
+[Step 3] Model loaded      → monitor: model row appears in Loaded Models tab with device badge
 [Step 4] Chat demo (auto)  → model stays loaded, monitor shows it
-[Step 5] Model unloaded    → monitor: "No models loaded"
-[Step 6] Service stopped   → monitor: "Service stopped"
+[Step 5] Model unloaded    → monitor: model row disappears from card
+[Step 6] Service stopped   → monitor: instance card removed from Status tab
 ```
 
 Each step has a deliberate pause so the monitor has time to poll and display
@@ -37,12 +37,23 @@ dotnet run
 
 ## What the Monitor should show
 
-| Step | Monitor status | Monitor model |
-|------|---------------|---------------|
-| After step 2 | `Running` — `http://127.0.0.1:{port}` | — |
-| After step 3 | `Running` | `qwen2.5-coder-0.5b [GPU]` |
-| After step 5 | `Running` | *(empty)* |
-| After step 6 | `Stopped` | — |
+### Status tab
+
+| Step | Instance card | Badge |
+|------|--------------|-------|
+| After step 2 | `http://127.0.0.1:{port}` — Process: your-app, PID: N | `sdk proxy` |
+| After step 6 | Card disappears | — |
+
+### Loaded Models tab
+
+| Step | Card | Model row |
+|------|------|-----------|
+| After step 3 | `your-app [PID N]` · Ports: :{port} | `[CUDA]` or `[CPU]` · `qwen2.5-coder-0.5b` · `:55588` |
+| After step 5 | Card still visible (process running) | *(empty — model unloaded)* |
+| After step 6 | Card disappears | — |
+
+The source port in the model row (e.g. `:55588`) identifies which endpoint reported the model.
+Hovering the model row shows the full `ModelId` with device suffix in the tooltip.
 
 ## Requirements
 

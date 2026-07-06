@@ -23,21 +23,61 @@ Windows systray monitor for [Foundry Local](https://learn.microsoft.com/en-us/az
 
 - 🔔 Toast notifications when models load/unload (Windows 10/11 Action Center)
 - 📊 Compact mini status window (always-on-top)
-- 🖥️ Full dashboard: status, loaded models, available models
+- 🖥️ Full dashboard: **Status**, **Loaded Models**, and **Available Models** tabs
+- 📁 Click any process path to open its folder in Explorer
 - ⚙️ Systray icon with context menu
 - 🔍 **Automatic multi-app discovery** — detects Foundry Local running in C#, Python, Node.js, Aspire, or any other context without manual configuration
+- 🔕 **Smart notifications** — suppresses noisy SDK-internal events by default; only alerts for meaningful model changes
+
+## UI Overview
+
+### Status tab
+
+Shows all discovered Foundry Local instances on the machine — each endpoint as a card with its URL, process name, port, PID, and process path. Click 📂 to open the process folder in Explorer.
+
+![Status tab](docs/images/tab-status.png)
+
+### Loaded Models tab
+
+Groups discovered instances by OS process (PID). Each card shows:
+- Process name, PID, and type badge (**sdk proxy** or **daemon**)
+- All ports this process listens on
+- Process executable path with 📂 folder shortcut
+- Every model currently loaded, with a **device badge** and the **source port**
+
+![Loaded Models tab — active models](docs/images/tab-loaded-models-active.png)
+
+**Device badge colours:**
+
+| Badge | Colour | Meaning |
+|-------|--------|---------|
+| `CUDA` | 🟢 green | NVIDIA CUDA GPU |
+| `TensorRT` | 🟩 emerald | TensorRT-optimised GPU |
+| `DirectML` | 🟣 purple | DirectML GPU (Intel/AMD) |
+| `WinML` | 🟠 orange | Windows ML CPU |
+| `CPU` | 🔵 blue | Generic CPU |
+| `GPU` | 🟢 green | Generic GPU |
+| `?` | ⬜ gray | Device not detected (utility/proxy models) |
+
+The right-hand column shows the source port (e.g. `:55588`) so you can tell which endpoint serves each model when a proxy listens on multiple ports.
+
+### Available Models tab
+
+Lists all models downloaded to your local Foundry cache and ready to load into memory.
+
+![Available Models tab](docs/images/tab-available-models.png)
 
 ## How Discovery Works
 
 The monitor does **not** rely on the foundry CLI alone. It runs a parallel HTTP port scan across all active localhost listeners and identifies any endpoint serving the Foundry OpenAI-compatible API:
 
 ```
-All 127.0.0.1 listeners  →  parallel GET /v1/models  →  merge model lists
-      (kernel call, ~1ms)       (800ms timeout each)      (union by ModelId)
+All 127.0.0.1 listeners  →  parallel GET /v1/models  →  group by PID  →  per-process cards
+      (kernel call, ~1ms)       (800ms timeout each)      (merge ports)
 ```
 
 This means the monitor detects:
-- Models loaded via **`foundry model load`** (CLI path)
+- Models loaded via **`foundry model load`** (CLI / daemon path)
 - Models loaded via the **C# `FoundryLocalManager` SDK** (port 55588 by default)
 - Models loaded via the **Python `foundry-local-sdk`** (port 55589 by default)
 - Models exposed through **.NET Aspire** proxy ports

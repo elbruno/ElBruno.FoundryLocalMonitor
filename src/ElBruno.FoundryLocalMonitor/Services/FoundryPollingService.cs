@@ -218,11 +218,7 @@ public class FoundryPollingService : IFoundryService, IDisposable
                 // Key on (port, modelId) — same model on different endpoints = different rows
                 var rowKey = $"{ep.Port}:{m.ModelId}";
                 if (seen.Add(rowKey))
-                {
-                    var pidLabel = ep.Pid.HasValue ? $" [PID {ep.Pid}]" : "";
-                    var source = $"{ep.ProcessName ?? ep.BaseUrl}:{ep.Port}{pidLabel}";
-                    merged.Add(m with { SourceEndpoint = source });
-                }
+                    merged.Add(m with { SourceEndpoint = ep.BaseUrl });
             }
         }
 

@@ -1,6 +1,6 @@
 # Foundry Local Monitor — Port & Service Discovery
 
-This document explains how the monitor discovers Foundry Local instances regardless of which language, SDK, or framework an app uses.
+This document explains how the monitor discovers Foundry Local instances regardless of which language, SDK, or framework an app uses, and how it groups them into per-process instance cards.
 
 ## The Problem
 
@@ -30,7 +30,13 @@ Monitor startup
 │       ├── {"object":"list"} ← FOUNDRY API ✓
 │       └── error / other    ← skip
 │
-└── Discovered endpoints cached + polled every 3-5s
+├── For each discovered endpoint → enrich with process metadata:
+│   ├── Process name (from PID lookup via netstat / GetActiveTcpListeners)
+│   ├── PID
+│   ├── Process path (full executable path)
+│   └── Type: sdk proxy (IsProxy) or daemon (IsDaemon)
+│
+└── Group endpoints by PID → one card per OS process in the UI
     Discovery re-runs every 30s (catches newly launched apps)
 ```
 
@@ -38,11 +44,28 @@ Monitor startup
 
 A machine typically has 15–30 listening localhost ports. At 800ms timeout each, sequential scanning would take up to 24 seconds. The monitor fans out all probes simultaneously — total discovery time ≈ 800ms regardless of port count.
 
+## Grouping by Process (PID)
+
+When a single process listens on multiple ports (e.g. `FoundryLocalProxy` listens on both `:50184` and `:55588`), the monitor **merges them into one card** keyed on PID. This prevents duplicate cards for the same app.
+
+```
+Discovered endpoints:
+  FoundryLocalProxy  PID 34096  :50184  (sdk proxy)
+  FoundryLocalProxy  PID 34096  :55588  (sdk proxy)
+                         ↓
+  Grouped card:
+  FoundryLocalProxy [PID 34096]
+  Ports: :50184 · :55588
+  Models: [list of models served across both ports]
+```
+
+Each model row in the card shows its **source port** (e.g. `:55588`) so you can see which endpoint reported it.
+
 ## What Gets Discovered
 
 | Scenario | Port | Discovery path |
 |---|---|---|
-| CLI: `foundry model load` | Daemon port (e.g. 62652) | HTTP scan OR `Inference.Service.Agent` process |
+| CLI: `foundry model load` | Daemon port (e.g. 57284) | HTTP scan + process table |
 | C# SDK: `FoundryLocalManager` | 55588 (default) | HTTP scan |
 | Python SDK: `FoundryLocalManager` | 55589 (default, or configured) | HTTP scan |
 | .NET Aspire proxy | e.g. 5099, 5100, 5101 | HTTP scan |
@@ -68,8 +91,9 @@ Every 3-5 seconds (configurable):
   2. If daemon alive and no endpoints cached → trigger immediate rediscovery
   3. If discovery stale (>30s) → trigger background rediscovery
   4. Query /v1/models on each cached endpoint (parallel, 3s timeout)
-  5. Merge model lists (union by ModelId)
-  6. Emit events for model load/unload changes
+  5. Merge model lists — keyed on (port, ModelId) to avoid cross-endpoint duplicates
+  6. Group models by PID → update Loaded Models tab cards
+  7. Emit events for model load/unload changes (with IsSilent flag for SDK-internal models)
 
 Every 30 seconds:
   1. Rescan all 127.0.0.1 listeners (parallel, 800ms timeout)
@@ -78,32 +102,52 @@ Every 30 seconds:
   4. Disappeared endpoints are removed from the cache
 ```
 
-## Model Sources
+## Model Sources and Device Detection
 
-Models are merged from three sources in each poll:
+Models are fetched from each discovered endpoint via one of two APIs:
 
-| Source | API | What it shows |
+| Endpoint type | API called | What it returns |
 |---|---|---|
-| Daemon `/v1/models` | `GET http://127.0.0.1:{daemonPort}/v1/models` | CLI-loaded models |
-| SDK internal `/v1/models` | `GET http://127.0.0.1:{sdkPort}/v1/models` | SDK-managed models |
-| `foundry service ps` | CLI subprocess | CLI-loaded models (cross-reference) |
+| SDK proxy (`IsProxy = true`) | `GET /v1/models` | All models the SDK instance knows about |
+| Daemon (`IsDaemon = true`) | `GET /openai/loadedmodels` | Models currently in memory |
 
-All sources are merged by `ModelId` (case-insensitive) to avoid duplicates.
+### Device parsing
+
+Model IDs from the API encode the device backend as a suffix, e.g.:
+`Phi-4-mini-instruct-cuda-gpu:5`
+
+The monitor strips the version suffix (`:5`) and extracts the device type:
+
+| Suffix | Device label | Badge colour |
+|---|---|---|
+| `-cuda-gpu` | `CUDA` | 🟢 green |
+| `-trtrtx-gpu` | `TensorRT` | 🟩 emerald |
+| `-generic-gpu` / `-gpu` | `GPU` | 🟢 green |
+| `-generic-cpu` / `-cpu` | `CPU` | 🔵 blue |
+| `-winml-directml` / `-directml-gpu` | `DirectML` | 🟣 purple |
+| `-winml-cpu` | `WinML` | 🟠 orange |
+| *(none matched)* | `?` | ⬜ gray |
+
+The friendly alias (e.g. `Phi-4-mini-instruct`) is shown in the UI; the full ModelId with device suffix is shown in the tooltip.
+
+## Smart Notifications
+
+The monitor emits toast notifications for model load/unload events. To avoid noise from SDK-internal background activity, events discovered on SDK proxy ports (55588, 55589) are marked **silent** by default. Only events from external apps or the daemon trigger visible notifications.
+
+This behaviour is configurable in Settings.
 
 ## Multiple Apps Simultaneously
 
-When multiple apps use Foundry Local at the same time, each has its own SDK internal server at its own port. The monitor discovers all of them:
+When multiple apps use Foundry Local at the same time, each has its own SDK internal server at its own port. The monitor discovers all of them and shows a separate card per process:
 
 ```
-App A (C#)   → SDK server at :55588 → /v1/models → [model-a]
-App B (Py)   → SDK server at :55589 → /v1/models → [model-b]
-Aspire proxy → DCP proxy at  :5101  → /v1/models → [model-a, model-b]
-                                                       ↑
-                                              Monitor merges all
-                                              into one unified list
+App A (C#)   → SDK server at :55588  [PID 1234]  → card: AppA [PID 1234]
+App B (Py)   → SDK server at :55589  [PID 5678]  → card: AppB [PID 5678]
+Aspire proxy → DCP proxy at  :5101   [PID 9012]  → card: FoundryProxy [PID 9012]
+Daemon       → agent at      :57284  [PID 21180] → card: Inference.Service.Agent [PID 21180]
 ```
 
-The shared foundry daemon (`Inference.Service.Agent`) handles actual inference for all apps. Each SDK instance has its own catalog view of which models it has registered.
+Each card is independent. Models shown in the SDK proxy cards reflect that process's registered model catalog; models shown in the daemon card reflect what is actually in GPU/CPU memory.
 
 ## Implementing Discovery in Your App
 
