@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using ElBruno.FoundryLocalMonitor.Configuration;
@@ -5,6 +6,7 @@ using ElBruno.FoundryLocalMonitor.Services;
 using ElBruno.FoundryLocalMonitor.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace ElBruno.FoundryLocalMonitor;
 
@@ -26,7 +28,18 @@ public partial class App : System.Windows.Application
         var settings = SettingsService.Load();
         ThemeManager.Apply(settings.Theme);
 
+        var logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ElBruno.FoundryLocalMonitor", "monitor.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+
         _host = Host.CreateDefaultBuilder()
+            .ConfigureLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.SetMinimumLevel(LogLevel.Debug);
+                logging.AddProvider(new FileLoggerProvider(logPath));
+            })
             .ConfigureServices(services =>
             {
                 services.AddSingleton(settings);
@@ -50,6 +63,7 @@ public partial class App : System.Windows.Application
 
         _trayIconService = new TrayIconService(
             foundryService,
+            _host.Services.GetRequiredService<AppSettings>(),
             openMonitor: ShowMainWindow,
             openMiniWindow: ShowMiniWindow,
             openSettings: ShowSettingsWindow,
@@ -64,7 +78,8 @@ public partial class App : System.Windows.Application
 
     private void ShowMainWindow()
     {
-        if (_mainWindow == null) return;
+        if (_mainWindow == null || !_mainWindow.IsLoaded)
+            _mainWindow = _host!.Services.GetRequiredService<MainWindow>();
         _mainWindow.Show();
         _mainWindow.Activate();
         _mainWindow.WindowState = WindowState.Normal;
@@ -72,7 +87,8 @@ public partial class App : System.Windows.Application
 
     private void ShowMiniWindow()
     {
-        if (_miniMonitorWindow == null) return;
+        if (_miniMonitorWindow == null || !_miniMonitorWindow.IsLoaded)
+            _miniMonitorWindow = _host!.Services.GetRequiredService<MiniMonitorWindow>();
         _miniMonitorWindow.Show();
         _miniMonitorWindow.Activate();
     }
@@ -105,14 +121,33 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += (_, args) =>
         {
             args.Handled = true;
+            LogUnhandledException("UI (Dispatcher)", args.Exception);
         };
 
-        AppDomain.CurrentDomain.UnhandledException += (_, _) => { };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                LogUnhandledException("AppDomain", ex);
+        };
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             args.SetObserved();
+            LogUnhandledException("Task", args.Exception);
         };
+    }
+
+    private static void LogUnhandledException(string source, Exception ex)
+    {
+        try
+        {
+            var logPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ElBruno.FoundryLocalMonitor", "monitor.log");
+            File.AppendAllText(logPath,
+                $"{DateTime.Now:HH:mm:ss.fff} [Critical   ] Unhandled {source} exception: {ex}\n");
+        }
+        catch { /* last-resort logging — ignore write failures */ }
     }
 }
 

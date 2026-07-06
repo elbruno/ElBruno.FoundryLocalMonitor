@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings — Foundry Local Monitor"
-        Width="460" Height="420"
+        Width="460"         Height="480"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="{DynamicResource SurfaceBrush}">
@@ -71,6 +71,22 @@
 
                 <CheckBox x:Name="NotifyOnUnloadBox" Content="Show notification when model unloads"
                           Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
+
+                <DockPanel Margin="0,4,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="Notify on changes from:"
+                               Foreground="{DynamicResource TextBrush}" Width="220" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="NotificationFilterBox" Width="160" HorizontalAlignment="Left"
+                              Background="{DynamicResource OverlayBrush}"
+                              Foreground="{DynamicResource TextBrush}"
+                              BorderBrush="{DynamicResource SurfaceMidBrush}">
+                        <ComboBoxItem Content="Daemon only"/>
+                        <ComboBoxItem Content="All instances"/>
+                        <ComboBoxItem Content="None"/>
+                    </ComboBox>
+                </DockPanel>
+                <TextBlock Text="'Daemon only' alerts when external apps load models via Foundry Local."
+                           Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,2,0,8"
+                           TextWrapping="Wrap"/>
 
                 <!-- Startup -->
                 <TextBlock Text="Startup" FontSize="13" FontWeight="SemiBold"

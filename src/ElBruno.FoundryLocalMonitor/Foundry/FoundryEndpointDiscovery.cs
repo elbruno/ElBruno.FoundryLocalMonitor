@@ -26,6 +26,13 @@ public class FoundryEndpointDiscovery
     // Known daemon process name — Foundry Local's inference backend
     private const string DaemonProcessName = "Inference.Service.Agent";
 
+    // Foundry SDK proxy processes: run inference in-process, expose /v1/models with
+    // currently loaded models, but do NOT implement /openai/status or /openai/loadedmodels.
+    private static readonly HashSet<string> FoundrySdkProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FoundryLocalProxy", "FoundryProxy"
+    };
+
     // Timeout per port probe — short enough to not block, long enough for local loopback
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(800);
 
@@ -104,10 +111,24 @@ public class FoundryEndpointDiscovery
             var resp = JsonSerializer.Deserialize<V1ModelsResponse>(json, JsonOptions);
             if (resp?.Object != "list") return null;
 
-            var models = resp.Data?.Select(ParseModel).ToList() ?? [];
             var processName = GetProcessNameForPort(port);
 
-            _logger?.LogDebug("Foundry API at :{Port} ({Process}) — {Count} model(s)",
+            // FoundryLocalProxy / FoundryProxy are Foundry SDK processes that run inference
+            // in-process. They expose /v1/models listing their currently loaded models but
+            // do NOT implement /openai/status or /openai/loadedmodels.
+            bool isSdkProxy = processName != null && FoundrySdkProcessNames.Contains(processName);
+
+            if (!isSdkProxy && !await IsFoundryEndpointAsync(port, ct))
+            {
+                _logger?.LogDebug("Skipping :{Port} ({Process}) — /openai/status not found; not a Foundry instance",
+                    port, processName ?? "unknown");
+                return null;
+            }
+
+            var models = resp.Data?.Select(ParseModel).ToList() ?? [];
+
+            _logger?.LogDebug("{Type} at :{Port} ({Process}) — {Count} model(s)",
+                isSdkProxy ? "Foundry SDK proxy" : "Foundry API",
                 port, processName, models.Count);
 
             return new FoundryEndpoint(
@@ -115,11 +136,32 @@ public class FoundryEndpointDiscovery
                 Port: port,
                 ProcessName: processName,
                 Models: models,
-                IsDaemon: port == (GetDaemonPort() ?? -1));
+                IsDaemon: port == (GetDaemonPort() ?? -1),
+                IsProxy: isSdkProxy);
         }
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a port hosts a real Foundry Local endpoint (not just an OpenAI shim
+    /// like Ollama). Returns true only if GET /openai/status responds with HTTP 200.
+    /// </summary>
+    private async Task<bool> IsFoundryEndpointAsync(int port, CancellationToken ct)
+    {
+        var url = $"http://127.0.0.1:{port}/openai/status";
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(ProbeTimeout);
+            var response = await _http.GetAsync(url, cts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -254,4 +296,5 @@ public record FoundryEndpoint(
     int Port,
     string? ProcessName,
     IReadOnlyList<FoundryModel> Models,
-    bool IsDaemon);
+    bool IsDaemon,
+    bool IsProxy = false);

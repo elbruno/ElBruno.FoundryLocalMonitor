@@ -24,16 +24,19 @@ public partial class SettingsWindow : Window
         NotifyOnUnloadBox.IsChecked = _settings.ShowNotificationsOnUnload;
         StartMinimizedBox.IsChecked = _settings.StartMinimizedToTray;
 
-        // Select the matching theme item
         foreach (ComboBoxItem item in ThemeBox.Items)
         {
             if (item.Content?.ToString() == _settings.Theme)
-            {
-                ThemeBox.SelectedItem = item;
-                break;
-            }
+            { ThemeBox.SelectedItem = item; break; }
         }
         if (ThemeBox.SelectedItem == null) ThemeBox.SelectedIndex = 0;
+
+        foreach (ComboBoxItem item in NotificationFilterBox.Items)
+        {
+            if (item.Content?.ToString() == _settings.NotificationFilter)
+            { NotificationFilterBox.SelectedItem = item; break; }
+        }
+        if (NotificationFilterBox.SelectedItem == null) NotificationFilterBox.SelectedIndex = 0;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -50,6 +53,8 @@ public partial class SettingsWindow : Window
         var selectedTheme = (ThemeBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "System";
         _settings.Theme = selectedTheme;
         ThemeManager.Apply(selectedTheme);
+
+        _settings.NotificationFilter = (NotificationFilterBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Daemon only";
 
         SettingsService.Save(_settings);
         Hide();

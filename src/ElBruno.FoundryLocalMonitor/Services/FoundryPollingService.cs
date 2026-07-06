@@ -125,6 +125,17 @@ public class FoundryPollingService : IFoundryService, IDisposable
             }
 
             var currentModels = await GetCurrentlyLoadedModelsAsync();
+
+            // On the first poll, silently snapshot whatever is already running.
+            // Models that were loaded before the monitor started are not events worth
+            // notifying about — only changes that happen during the session matter.
+            if (wasFirstPoll)
+            {
+                _loadedModels = currentModels;
+                _logger?.LogDebug("First poll: silently snapshotted {Count} pre-existing model(s)", currentModels.Count);
+                return;
+            }
+
             DetectChanges(currentModels);
         }
         catch (Exception ex)
@@ -141,11 +152,28 @@ public class FoundryPollingService : IFoundryService, IDisposable
     {
         try
         {
-            var endpoints = await _discovery.DiscoverAsync(ct);
+            var endpoints = (await _discovery.DiscoverAsync(ct)).ToList();
+
+            // The Foundry daemon (Inference.Service.Agent) exposes /openai/status and
+            // /openai/loadedmodels but does NOT implement the OpenAI /v1/models shim,
+            // so the HTTP probe won't find it. Explicitly add it when running.
+            var daemonPort = FoundryEndpointDiscovery.GetDaemonPort();
+            if (daemonPort.HasValue && !endpoints.Any(e => e.Port == daemonPort.Value))
+            {
+                endpoints.Add(new FoundryEndpoint(
+                    $"http://127.0.0.1:{daemonPort.Value}",
+                    daemonPort.Value,
+                    "Inference.Service.Agent",
+                    [],
+                    IsDaemon: true,
+                    IsProxy: false));
+                _logger?.LogDebug("Daemon added explicitly at :{Port}", daemonPort.Value);
+            }
+
             _discoveredEndpoints = endpoints;
             _lastDiscovery = DateTime.UtcNow;
             _logger?.LogDebug("Discovery: {Count} endpoint(s) found", endpoints.Count);
-            DiscoveredEndpointsChanged?.Invoke(this, endpoints);
+            DiscoveredEndpointsChanged?.Invoke(this, _discoveredEndpoints);
         }
         catch (Exception ex)
         {
@@ -154,33 +182,47 @@ public class FoundryPollingService : IFoundryService, IDisposable
     }
 
     /// <summary>
-    /// Fetches currently loaded models from ALL discovered endpoints via the official
-    /// GET /openai/loadedmodels API, then merges with CLI output as a fallback.
+    /// Fetches currently loaded models from ALL discovered endpoints.
+    ///
+    /// Two endpoint types need different strategies:
+    ///  - Daemon (Inference.Service.Agent): GET /openai/loadedmodels — authoritative loaded list
+    ///  - SDK proxy (FoundryLocalProxy, FoundryProxy): GET /v1/models — the proxy only lists
+    ///    models it currently has loaded in-process (no /openai/loadedmodels endpoint exists)
     /// </summary>
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // /openai/loadedmodels is the correct Foundry Local endpoint — returns ONLY
-        // models in memory. /v1/models returns the full available catalog (not loaded).
-        var allTasks = _discoveredEndpoints
-            .Select(ep => _httpClient.GetLoadedModelsFromEndpointAsync(ep.BaseUrl))
-            .ToArray();
-        var allResults = await Task.WhenAll(allTasks);
-
-        // Also check foundry service ps (CLI-managed models, may not appear via HTTP)
-        var cliOutput = await _cliRunner.RunAsync("service ps");
-        var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
-
-        // Merge: union by ModelId across all sources
         var merged = new List<FoundryModel>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var list in allResults)
-            foreach (var m in list)
-                if (seen.Add(m.ModelId)) merged.Add(m);
+        foreach (var ep in _discoveredEndpoints)
+        {
+            IReadOnlyList<FoundryModel> models;
+            if (ep.IsProxy)
+            {
+                // SDK proxy: /v1/models lists what's loaded in-process. Re-query each poll
+                // so we get fresh data (not the stale snapshot from the last discovery cycle).
+                models = await _httpClient.GetLoadedModelsFromUrlAsync(ep.BaseUrl);
+            }
+            else
+            {
+                // Daemon: use the authoritative /openai/loadedmodels endpoint
+                models = await _httpClient.GetLoadedModelsFromEndpointAsync(ep.BaseUrl);
+            }
 
+            foreach (var m in models)
+                if (seen.Add(m.ModelId))
+                    merged.Add(m with { SourceEndpoint = $"{ep.ProcessName ?? ep.BaseUrl} :{ep.Port}" });
+        }
+
+        // CLI fallback for models not visible via HTTP (e.g., CLI-managed sessions)
+        var cliOutput = await _cliRunner.RunAsync("service ps");
+        var cliModels = cliOutput != null ? FoundryCliParser.ParseLoadedModels(cliOutput) : null;
         if (cliModels != null)
             foreach (var m in cliModels)
                 if (seen.Add(m.ModelId)) merged.Add(m);
+
+        _logger?.LogDebug("GetCurrentlyLoadedModels: {Count} model(s) total — {Ids}",
+            merged.Count, string.Join(", ", merged.Select(m => m.ModelId)));
 
         return merged;
     }

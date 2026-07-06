@@ -74,7 +74,7 @@
                                Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,0,0,8">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Visible"/>
+                                <Setter Property="Visibility" Value="Collapsed"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding DiscoveredInstances.Count}" Value="0">
                                         <Setter Property="Visibility" Value="Visible"/>
@@ -96,6 +96,12 @@
                                                     CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
                                                     Visibility="{Binding IsDaemon, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBlock Text="daemon" FontSize="10"
+                                                           Foreground="{DynamicResource OnAccentBrush}"/>
+                                            </Border>
+                                            <Border Background="{DynamicResource WarnBrush}"
+                                                    CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
+                                                    Visibility="{Binding IsProxy, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="sdk proxy" FontSize="10"
                                                            Foreground="{DynamicResource OnAccentBrush}"/>
                                             </Border>
                                         </StackPanel>
@@ -141,9 +147,10 @@
                               Foreground="{DynamicResource TextBrush}">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="Model ID" DisplayMemberBinding="{Binding ModelId}" Width="250"/>
-                                <GridViewColumn Header="Alias" DisplayMemberBinding="{Binding Alias}" Width="200"/>
-                                <GridViewColumn Header="Device" DisplayMemberBinding="{Binding Device}" Width="120"/>
+                                <GridViewColumn Header="Model ID" DisplayMemberBinding="{Binding ModelId}" Width="220"/>
+                                <GridViewColumn Header="Alias" DisplayMemberBinding="{Binding Alias}" Width="160"/>
+                                <GridViewColumn Header="Device" DisplayMemberBinding="{Binding Device}" Width="80"/>
+                                <GridViewColumn Header="Instance" DisplayMemberBinding="{Binding SourceEndpoint}" Width="220"/>
                             </GridView>
                         </ListView.View>
                     </ListView>

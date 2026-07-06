@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using ElBruno.FoundryLocalMonitor.Configuration;
 using ElBruno.FoundryLocalMonitor.Models;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
@@ -21,6 +22,7 @@ public sealed class TrayIconService : IDisposable
     private const string AppId = "ElBruno.FoundryLocalMonitor";
 
     private readonly IFoundryService _foundryService;
+    private readonly AppSettings _settings;
     private readonly Action _openMonitor;
     private readonly Action _openMiniWindow;
     private readonly Action _openSettings;
@@ -31,12 +33,14 @@ public sealed class TrayIconService : IDisposable
 
     public TrayIconService(
         IFoundryService foundryService,
+        AppSettings settings,
         Action openMonitor,
         Action openMiniWindow,
         Action openSettings,
         Action exitAction)
     {
         _foundryService = foundryService;
+        _settings = settings;
         _openMonitor = openMonitor;
         _openMiniWindow = openMiniWindow;
         _openSettings = openSettings;
@@ -95,12 +99,40 @@ public sealed class TrayIconService : IDisposable
 
         UpdateState(newState, tooltip);
 
-        var message = change.ChangeType == ModelChangeType.Loaded
+        // Apply notification filter before showing toast
+        if (!ShouldNotify(change)) return;
+
+        var isLoad = change.ChangeType == ModelChangeType.Loaded;
+        if (isLoad && !_settings.ShowNotificationsOnLoad) return;
+        if (!isLoad && !_settings.ShowNotificationsOnUnload) return;
+
+        var message = isLoad
             ? $"Model loaded: {change.Model.Alias}"
             : $"Model unloaded: {change.Model.Alias}";
 
         ShowToast("Foundry Local Monitor", message);
     }
+
+    /// <summary>
+    /// Returns true if a model change should produce a toast based on the
+    /// current NotificationFilter setting:
+    ///   "None"         — never notify
+    ///   "Daemon only"  — notify only when the source is Inference.Service.Agent
+    ///   "All instances"— notify for every endpoint (daemon + SDK proxies)
+    /// </summary>
+    private bool ShouldNotify(ModelStateChange change)
+    {
+        return _settings.NotificationFilter switch
+        {
+            "None" => false,
+            "Daemon only" => IsDaemonSource(change.Model.SourceEndpoint),
+            _ => true   // "All instances" or any future value
+        };
+    }
+
+    private static bool IsDaemonSource(string? sourceEndpoint) =>
+        sourceEndpoint != null &&
+        sourceEndpoint.Contains("Inference.Service.Agent", StringComparison.OrdinalIgnoreCase);
 
     private void UpdateState(FoundryTrayState state, string tooltip)
     {

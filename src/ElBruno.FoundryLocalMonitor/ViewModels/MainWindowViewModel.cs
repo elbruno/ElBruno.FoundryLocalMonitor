@@ -44,9 +44,14 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         _dispatcher.Invoke(() =>
         {
             if (change.ChangeType == ModelChangeType.Loaded)
+            {
                 LoadedModels.Add(change.Model);
+            }
             else
-                LoadedModels.Remove(change.Model);
+            {
+                var existing = LoadedModels.FirstOrDefault(m => m.ModelId == change.Model.ModelId);
+                if (existing != null) LoadedModels.Remove(existing);
+            }
         });
     }
 
