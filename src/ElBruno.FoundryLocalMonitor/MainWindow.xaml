@@ -119,11 +119,11 @@
                                                 <Run Text="{Binding Pid, TargetNullValue='?'}"/>
                                             </TextBlock>
                                             <DockPanel Margin="0,2,0,0">
-                                                <Button DockPanel.Dock="Right"
+                                                <Button DockPanel.Dock="Left"
                                                         Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                         CommandParameter="{Binding ProcessPath}"
                                                         Background="Transparent" BorderThickness="0"
-                                                        Padding="4,0,0,0" Cursor="Hand"
+                                                        Padding="0,0,4,0" Cursor="Hand"
                                                         VerticalAlignment="Center"
                                                         ToolTip="Open folder in Explorer">
                                                     <TextBlock Text="📂" FontSize="11"
@@ -186,11 +186,11 @@
                                             <TextBlock Text="{Binding PortsLabel, StringFormat='Ports: {0}'}"
                                                        FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,4,0,0"/>
                                              <DockPanel Margin="0,2,0,0">
-                                                <Button DockPanel.Dock="Right"
+                                               <Button DockPanel.Dock="Left"
                                                         Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                                         CommandParameter="{Binding ProcessPath}"
                                                         Background="Transparent" BorderThickness="0"
-                                                        Padding="4,0,0,0" Cursor="Hand"
+                                                       Padding="0,0,4,0" Cursor="Hand"
                                                         VerticalAlignment="Center"
                                                         ToolTip="Open folder in Explorer">
                                                     <TextBlock Text="📂" FontSize="11"
@@ -208,22 +208,31 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <DockPanel Margin="0,3,0,0">
-                                                            <Border DockPanel.Dock="Right"
-                                                                    Background="{Binding Device, Converter={StaticResource DeviceToColor}}"
-                                                                    CornerRadius="2" Padding="5,1" Margin="6,0,0,0"
-                                                                    VerticalAlignment="Center">
-                                                                <TextBlock FontSize="9" Foreground="White" FontWeight="SemiBold"
-                                                                           Text="{Binding Device, TargetNullValue='?'}"/>
-                                                            </Border>
-                                                            <TextBlock FontSize="11"
-                                                                       Foreground="{DynamicResource SubtextBrush}"
-                                                                       VerticalAlignment="Center"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       ToolTip="{Binding ModelId}"
-                                                                       Text="{Binding Alias}"/>
-                                                        </DockPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
+                                                           <!-- Device badge — left column -->
+                                                           <Border DockPanel.Dock="Left"
+                                                                   Background="{Binding Device, Converter={StaticResource DeviceToColor}}"
+                                                                   CornerRadius="2" Padding="5,1" Margin="0,0,8,0"
+                                                                   VerticalAlignment="Center" MinWidth="52">
+                                                               <TextBlock FontSize="9" Foreground="White" FontWeight="SemiBold"
+                                                                          HorizontalAlignment="Center"
+                                                                          Text="{Binding Device, TargetNullValue='?'}"/>
+                                                           </Border>
+                                                           <!-- Source port — right column, muted -->
+                                                           <TextBlock DockPanel.Dock="Right"
+                                                                      FontSize="9" Foreground="{DynamicResource MutedBrush}"
+                                                                      VerticalAlignment="Center" Margin="6,0,0,0"
+                                                                      FontFamily="Consolas"
+                                                                      Text="{Binding SourceEndpoint, Converter={StaticResource EndpointToPort}}"/>
+                                                           <!-- Model alias — fills remaining space -->
+                                                           <TextBlock FontSize="11"
+                                                                      Foreground="{DynamicResource SubtextBrush}"
+                                                                      VerticalAlignment="Center"
+                                                                      TextTrimming="CharacterEllipsis"
+                                                                      ToolTip="{Binding ModelId}"
+                                                                      Text="{Binding Alias}"/>
+                                                       </DockPanel>
+                                                   </DataTemplate>
+                                               </ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </StackPanel>
                                     </Border>

@@ -149,7 +149,19 @@ public class FoundryHttpClient
             if (noVersion.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
                 alias = noVersion[..^suffix.Length];
-                device = suffix.Contains("cpu", StringComparison.OrdinalIgnoreCase) ? "CPU" : "GPU";
+                device = suffix switch
+                {
+                    "-trtrtx-gpu"    => "TensorRT",
+                    "-cuda-gpu"      => "CUDA",
+                    "-generic-gpu"   => "GPU",
+                    "-generic-cpu"   => "CPU",
+                    "-winml-directml"=> "DirectML",
+                    "-winml-cpu"     => "WinML",
+                    "-directml-gpu"  => "DirectML",
+                    "-cpu"           => "CPU",
+                    "-gpu"           => "GPU",
+                    _                => "GPU"
+                };
                 break;
             }
         }

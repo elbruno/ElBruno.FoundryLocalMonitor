@@ -9,6 +9,7 @@
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     <converters:DeviceToColorConverter x:Key="DeviceToColor"/>
+    <converters:EndpointToPortConverter x:Key="EndpointToPort"/>
 
     <!-- Structural styles — use DynamicResource so live theme switching works -->
     <Style TargetType="TextBlock">
