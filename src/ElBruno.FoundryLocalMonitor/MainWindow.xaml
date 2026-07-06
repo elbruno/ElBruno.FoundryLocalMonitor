@@ -146,23 +146,131 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Currently Loaded Models" FontSize="15"
+                    <TextBlock Grid.Row="0" Text="Loaded Models by Instance" FontSize="15"
                                FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
-                               Margin="0,0,0,12"/>
-                    <ListView Grid.Row="1" ItemsSource="{Binding LoadedModels}"
-                              Background="{DynamicResource OverlayBrush}"
-                              BorderThickness="0"
-                              Foreground="{DynamicResource TextBrush}">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Model ID" DisplayMemberBinding="{Binding ModelId}" Width="200"/>
-                                <GridViewColumn Header="Alias" DisplayMemberBinding="{Binding Alias}" Width="140"/>
-                                <GridViewColumn Header="Device" DisplayMemberBinding="{Binding Device}" Width="70"/>
-                                <GridViewColumn Header="Type" DisplayMemberBinding="{Binding SourceType}" Width="85"/>
-                                <GridViewColumn Header="Instance" DisplayMemberBinding="{Binding SourceEndpoint}" Width="200"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                               Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="0" Text="Each card is one OS process. Same PID = same process even if it listens on multiple ports."
+                               FontSize="11" Foreground="{DynamicResource MutedBrush}"
+                               Margin="0,28,0,0"/>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <ItemsControl ItemsSource="{Binding GroupedInstances}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource OverlayBrush}"
+                                            BorderBrush="{DynamicResource SurfaceMidBrush}"
+                                            BorderThickness="1" CornerRadius="4"
+                                            Padding="14,10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <!-- Instance header -->
+                                            <DockPanel Margin="0,0,0,4">
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                                    <Border Background="{DynamicResource AccentBrush}"
+                                                            CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
+                                                            Visibility="{Binding IsDaemon, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Text="daemon" FontSize="10"
+                                                                   Foreground="{DynamicResource OnAccentBrush}"/>
+                                                    </Border>
+                                                    <Border Background="{DynamicResource WarnBrush}"
+                                                            CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
+                                                            Visibility="{Binding IsProxy, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Text="sdk proxy" FontSize="10"
+                                                                   Foreground="{DynamicResource OnAccentBrush}"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Header}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0">
+                                                        <Run Text="Ports: "/>
+                                                        <Run Text="{Binding PortsLabel}" FontFamily="Consolas"/>
+                                                        <Run Text="   "/>
+                                                        <Run Text="{Binding ModelCount}" FontWeight="SemiBold"/>
+                                                        <Run Text=" model(s) loaded"/>
+                                                    </TextBlock>
+                                                    <TextBlock FontSize="10" Foreground="{DynamicResource MutedBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding ProcessPath}"
+                                                               Text="{Binding ProcessPath, TargetNullValue='path unavailable'}"
+                                                               MaxWidth="700" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <Separator Background="{DynamicResource SurfaceMidBrush}" Margin="0,6,0,6"/>
+
+                                            <!-- Column headers -->
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="220"/>
+                                                    <ColumnDefinition Width="160"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Model ID"
+                                                           FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource MutedBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="Alias"
+                                                           FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource MutedBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="Device"
+                                                           FontSize="10" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource MutedBrush}"/>
+                                            </Grid>
+
+                                            <!-- Model rows -->
+                                            <ItemsControl ItemsSource="{Binding Models}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="220"/>
+                                                                <ColumnDefinition Width="160"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding ModelId}"
+                                                                       Foreground="{DynamicResource TextBrush}"
+                                                                       FontFamily="Consolas" FontSize="12"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Alias}"
+                                                                       Foreground="{DynamicResource SubtextBrush}"
+                                                                       FontSize="12"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Device}"
+                                                                       Foreground="{DynamicResource AccentBrush}"
+                                                                       FontSize="11" FontWeight="SemiBold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Device}" Value="{x:Null}">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <!-- No models placeholder -->
+                                            <TextBlock Text="No models loaded in this instance"
+                                                       Foreground="{DynamicResource MutedBrush}"
+                                                       FontStyle="Italic" FontSize="12" Margin="0,2">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasModels}" Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
 

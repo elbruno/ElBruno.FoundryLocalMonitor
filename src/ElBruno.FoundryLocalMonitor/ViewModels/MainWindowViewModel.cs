@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
     public ObservableCollection<FoundryModel> LoadedModels { get; } = [];
     public ObservableCollection<FoundryModel> AvailableModels { get; } = [];
     public ObservableCollection<FoundryEndpoint> DiscoveredInstances { get; } = [];
+    public ObservableCollection<InstanceGroup> GroupedInstances { get; } = [];
 
     public MainWindowViewModel(IFoundryService foundryService)
     {
@@ -49,9 +50,13 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
             }
             else
             {
-                var existing = LoadedModels.FirstOrDefault(m => m.ModelId == change.Model.ModelId);
+                // Match by both ModelId and SourceEndpoint to handle same model on multiple endpoints
+                var existing = LoadedModels.FirstOrDefault(m =>
+                    m.ModelId == change.Model.ModelId && m.SourceEndpoint == change.Model.SourceEndpoint)
+                    ?? LoadedModels.FirstOrDefault(m => m.ModelId == change.Model.ModelId);
                 if (existing != null) LoadedModels.Remove(existing);
             }
+            RebuildGroupedInstances();
         });
     }
 
@@ -69,7 +74,59 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             DiscoveredInstances.Clear();
             foreach (var ep in endpoints) DiscoveredInstances.Add(ep);
+            RebuildGroupedInstances();
         });
+    }
+
+    /// <summary>
+    /// Builds GroupedInstances from DiscoveredInstances (grouped by PID/process) and
+    /// associates each group's loaded models from LoadedModels by port match.
+    /// Same-PID endpoints (e.g., FoundryLocalProxy listening on :50184 and :55588) are
+    /// merged into one card so the user sees one process with all its models.
+    /// </summary>
+    private void RebuildGroupedInstances()
+    {
+        var groups = DiscoveredInstances
+            .GroupBy(ep => ep.Pid.HasValue ? $"pid:{ep.Pid}" : $"name:{ep.ProcessName ?? ep.BaseUrl}")
+            .OrderBy(g => g.First().IsDaemon ? 1 : 0); // proxies first, daemon last
+
+        var result = new List<InstanceGroup>();
+        foreach (var g in groups)
+        {
+            var first = g.First();
+            var ports = g.Select(ep => ep.Port).OrderBy(p => p).ToList();
+            var portsLabel = string.Join("  ·  ", ports.Select(p => $":{p}"));
+            var portSet = ports.ToHashSet();
+
+            var models = LoadedModels
+                .Where(m => ExtractPort(m.SourceEndpoint) is int p && portSet.Contains(p))
+                .OrderBy(m => m.Alias)
+                .ToList();
+
+            result.Add(new InstanceGroup(
+                ProcessName: first.ProcessName,
+                Pid: first.Pid,
+                PortsLabel: portsLabel,
+                ProcessPath: first.ProcessPath,
+                IsProxy: first.IsProxy,
+                IsDaemon: first.IsDaemon,
+                Models: models));
+        }
+
+        GroupedInstances.Clear();
+        foreach (var g in result) GroupedInstances.Add(g);
+    }
+
+    private static int? ExtractPort(string? sourceEndpoint)
+    {
+        // Format: "FoundryLocalProxy:50184 [PID 34096]"
+        if (sourceEndpoint == null) return null;
+        var colonIdx = sourceEndpoint.IndexOf(':');
+        if (colonIdx < 0) return null;
+        var afterColon = sourceEndpoint[(colonIdx + 1)..];
+        var spaceIdx = afterColon.IndexOf(' ');
+        var portStr = spaceIdx >= 0 ? afterColon[..spaceIdx] : afterColon;
+        return int.TryParse(portStr, out var port) ? port : null;
     }
 
     private static string ExtractBaseUrl(string url)
