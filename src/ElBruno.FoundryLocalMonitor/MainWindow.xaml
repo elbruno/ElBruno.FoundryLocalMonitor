@@ -141,19 +141,15 @@
 
             <!-- Loaded Models tab -->
             <TabItem Header="Loaded Models">
-                <Grid Margin="20">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Loaded Models by Instance" FontSize="15"
-                               FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Grid.Row="0" Text="Each card is one OS process. Same PID = same process even if it listens on multiple ports."
-                               FontSize="11" Foreground="{DynamicResource MutedBrush}"
-                               Margin="0,28,0,0"/>
+                <ScrollViewer Margin="20" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Loaded Models by Instance" FontSize="15"
+                                   FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
+                                   Margin="0,0,0,2"/>
+                        <TextBlock Text="Each card is one OS process. Same PID = same process even on multiple ports."
+                                   FontSize="11" Foreground="{DynamicResource MutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
                         <ItemsControl ItemsSource="{Binding GroupedInstances}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -184,7 +180,7 @@
                                                     <TextBlock FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0">
                                                         <Run Text="Ports: "/>
                                                         <Run Text="{Binding PortsLabel}" FontFamily="Consolas"/>
-                                                        <Run Text="   "/>
+                                                        <Run Text="    "/>
                                                         <Run Text="{Binding ModelCount}" FontWeight="SemiBold"/>
                                                         <Run Text=" model(s) loaded"/>
                                                     </TextBlock>
@@ -232,19 +228,10 @@
                                                             <TextBlock Grid.Column="1" Text="{Binding Alias}"
                                                                        Foreground="{DynamicResource SubtextBrush}"
                                                                        FontSize="12"/>
-                                                            <TextBlock Grid.Column="2" Text="{Binding Device}"
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding Device, TargetNullValue=''}"
                                                                        Foreground="{DynamicResource AccentBrush}"
-                                                                       FontSize="11" FontWeight="SemiBold">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding Device}" Value="{x:Null}">
-                                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
+                                                                       FontSize="11" FontWeight="SemiBold"/>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -270,8 +257,8 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
-                </Grid>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <!-- Available Models tab -->

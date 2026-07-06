@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using ElBruno.FoundryLocalMonitor.Foundry;
 using ElBruno.FoundryLocalMonitor.Models;
 using ElBruno.FoundryLocalMonitor.Services;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 
@@ -11,6 +12,7 @@ namespace ElBruno.FoundryLocalMonitor.ViewModels;
 public partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private readonly IFoundryService _foundryService;
+    private readonly ILogger<MainWindowViewModel>? _logger;
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
 
     [ObservableProperty] private bool _isServiceRunning;
@@ -22,9 +24,10 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
     public ObservableCollection<FoundryEndpoint> DiscoveredInstances { get; } = [];
     public ObservableCollection<InstanceGroup> GroupedInstances { get; } = [];
 
-    public MainWindowViewModel(IFoundryService foundryService)
+    public MainWindowViewModel(IFoundryService foundryService, ILogger<MainWindowViewModel>? logger = null)
     {
         _foundryService = foundryService;
+        _logger = logger;
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
         _foundryService.EndpointChanged += OnEndpointChanged;
@@ -112,6 +115,12 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
                 IsDaemon: first.IsDaemon,
                 Models: models));
         }
+
+        _logger?.LogDebug("RebuildGroupedInstances: {Discovered} endpoints → {Groups} groups, LoadedModels={Models}",
+            DiscoveredInstances.Count, result.Count, LoadedModels.Count);
+        foreach (var g in result)
+            _logger?.LogDebug("  Group '{Name}' [PID {Pid}] ports={Ports} models={Count}",
+                g.ProcessName, g.Pid, g.PortsLabel, g.Models.Count);
 
         GroupedInstances.Clear();
         foreach (var g in result) GroupedInstances.Add(g);
