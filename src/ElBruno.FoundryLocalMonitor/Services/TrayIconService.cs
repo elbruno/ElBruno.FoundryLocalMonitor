@@ -100,7 +100,7 @@ public sealed class TrayIconService : IDisposable
         UpdateState(newState, tooltip);
 
         // Apply notification filter before showing toast
-        if (!ShouldNotify(change)) return;
+        if (change.IsSilent || !ShouldNotify(change)) return;
 
         var isLoad = change.ChangeType == ModelChangeType.Loaded;
         if (isLoad && !_settings.ShowNotificationsOnLoad) return;

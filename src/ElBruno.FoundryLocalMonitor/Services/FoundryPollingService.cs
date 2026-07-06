@@ -126,13 +126,12 @@ public class FoundryPollingService : IFoundryService, IDisposable
 
             var currentModels = await GetCurrentlyLoadedModelsAsync();
 
-            // On the first poll, silently snapshot whatever is already running.
-            // Models that were loaded before the monitor started are not events worth
-            // notifying about — only changes that happen during the session matter.
+            // On the first poll, snapshot pre-existing models into the UI without
+            // firing toast notifications (IsSilent=true). Changes during the session fire normally.
             if (wasFirstPoll)
             {
-                _loadedModels = currentModels;
                 _logger?.LogDebug("First poll: silently snapshotted {Count} pre-existing model(s)", currentModels.Count);
+                DetectChanges(currentModels, isSilent: true);
                 return;
             }
 
@@ -160,13 +159,18 @@ public class FoundryPollingService : IFoundryService, IDisposable
             var daemonPort = FoundryEndpointDiscovery.GetDaemonPort();
             if (daemonPort.HasValue && !endpoints.Any(e => e.Port == daemonPort.Value))
             {
+                var daemonProc = System.Diagnostics.Process.GetProcessesByName("Inference.Service.Agent").FirstOrDefault();
+                string? daemonPath = null;
+                try { daemonPath = daemonProc?.MainModule?.FileName; } catch { }
                 endpoints.Add(new FoundryEndpoint(
                     $"http://127.0.0.1:{daemonPort.Value}",
                     daemonPort.Value,
                     "Inference.Service.Agent",
                     [],
                     IsDaemon: true,
-                    IsProxy: false));
+                    IsProxy: false,
+                    Pid: daemonProc?.Id,
+                    ProcessPath: daemonPath));
                 _logger?.LogDebug("Daemon added explicitly at :{Port}", daemonPort.Value);
             }
 
@@ -227,16 +231,16 @@ public class FoundryPollingService : IFoundryService, IDisposable
         return merged;
     }
 
-    private void DetectChanges(IReadOnlyList<FoundryModel> newModels)
+    private void DetectChanges(IReadOnlyList<FoundryModel> newModels, bool isSilent = false)
     {
         var prevIds = _loadedModels.Select(m => m.ModelId).ToHashSet();
         var newIds = newModels.Select(m => m.ModelId).ToHashSet();
 
         foreach (var model in newModels.Where(m => !prevIds.Contains(m.ModelId)))
-            ModelStateChanged?.Invoke(this, new ModelStateChange(model, ModelChangeType.Loaded, DateTime.Now));
+            ModelStateChanged?.Invoke(this, new ModelStateChange(model, ModelChangeType.Loaded, DateTime.Now, isSilent));
 
         foreach (var model in _loadedModels.Where(m => !newIds.Contains(m.ModelId)))
-            ModelStateChanged?.Invoke(this, new ModelStateChange(model, ModelChangeType.Unloaded, DateTime.Now));
+            ModelStateChanged?.Invoke(this, new ModelStateChange(model, ModelChangeType.Unloaded, DateTime.Now, isSilent));
 
         _loadedModels = newModels;
     }

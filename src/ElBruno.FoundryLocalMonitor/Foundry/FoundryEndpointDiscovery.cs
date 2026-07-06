@@ -111,7 +111,7 @@ public class FoundryEndpointDiscovery
             var resp = JsonSerializer.Deserialize<V1ModelsResponse>(json, JsonOptions);
             if (resp?.Object != "list") return null;
 
-            var processName = GetProcessNameForPort(port);
+            var (processName, processPid, processPath) = GetProcessInfoForPort(port);
 
             // FoundryLocalProxy / FoundryProxy are Foundry SDK processes that run inference
             // in-process. They expose /v1/models listing their currently loaded models but
@@ -137,7 +137,9 @@ public class FoundryEndpointDiscovery
                 ProcessName: processName,
                 Models: models,
                 IsDaemon: port == (GetDaemonPort() ?? -1),
-                IsProxy: isSdkProxy);
+                IsProxy: isSdkProxy,
+                Pid: processPid,
+                ProcessPath: processPath);
         }
         catch
         {
@@ -212,9 +214,14 @@ public class FoundryEndpointDiscovery
 
     private static string? GetProcessNameForPort(int port)
     {
+        var (name, _, _) = GetProcessInfoForPort(port);
+        return name;
+    }
+
+    private static (string? Name, int? Pid, string? Path) GetProcessInfoForPort(int port)
+    {
         try
         {
-            // Use netstat via WMI TcpConnection isn't available; read TCP table via P/Invoke-free approach
             using var proc = new Process
             {
                 StartInfo = new ProcessStartInfo("netstat", "-ano")
@@ -235,12 +242,15 @@ public class FoundryEndpointDiscovery
                 var parts = line.Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 5 && int.TryParse(parts[^1], out var pid))
                 {
-                    return Process.GetProcessById(pid).ProcessName;
+                    var p = Process.GetProcessById(pid);
+                    string? path = null;
+                    try { path = p.MainModule?.FileName; } catch { }
+                    return (p.ProcessName, pid, path);
                 }
             }
         }
         catch { }
-        return null;
+        return (null, null, null);
     }
 
     private static int? GetListeningPortForPid(int pid)
@@ -297,4 +307,6 @@ public record FoundryEndpoint(
     string? ProcessName,
     IReadOnlyList<FoundryModel> Models,
     bool IsDaemon,
-    bool IsProxy = false);
+    bool IsProxy = false,
+    int? Pid = null,
+    string? ProcessPath = null);
