@@ -61,6 +61,57 @@ To update later:
 dotnet tool update -g ElBruno.FoundryLocalMonitor
 ```
 
+## A quick example: the scenario it detects
+
+Here is the kind of code the monitor is designed to see. This is a plain .NET console app using the [`Microsoft.AI.Foundry.Local`](https://www.nuget.org/packages/Microsoft.AI.Foundry.Local) SDK — no CLI involved. The SDK spins up its own OpenAI-compatible REST server, and *that* is exactly what the monitor finds and shows in real time.
+
+```csharp
+using Microsoft.AI.Foundry.Local;
+using Microsoft.Extensions.Logging.Abstractions;
+
+// The SDK hosts an internal OpenAI-compatible server on this address.
+// The C# SDK default is 55588 (Python uses 55589).
+var config = new Configuration
+{
+    AppName = "MyFoundryApp",
+    Web     = new Configuration.WebService { Urls = "http://127.0.0.1:55588" }
+};
+
+await FoundryLocalManager.CreateAsync(config, NullLogger.Instance);
+var manager = FoundryLocalManager.Instance;
+
+// Start the web service — this is the endpoint the monitor discovers.
+await manager.StartWebServiceAsync();
+var endpoint = manager.Urls?.FirstOrDefault();
+Console.WriteLine($"Foundry Local is serving at {endpoint}");
+```
+
+From this point on, the app is completely **invisible to the `foundry` CLI** — but the monitor sees it, because it answers on an HTTP port. The moment a model loads, you get a toast.
+
+Talking to that endpoint is just OpenAI-compatible HTTP, so any .NET HttpClient works:
+
+```csharp
+using System.Net.Http.Json;
+
+using var http = new HttpClient { BaseAddress = new Uri(endpoint!) };
+
+var response = await http.PostAsJsonAsync("/v1/chat/completions", new
+{
+    model    = "qwen2.5-coder-0.5b",
+    messages = new[]
+    {
+        new { role = "system", content = "You are a helpful assistant." },
+        new { role = "user",   content = "What is Foundry Local in one sentence?" }
+    },
+    max_tokens = 200
+});
+
+var json = await response.Content.ReadAsStringAsync();
+Console.WriteLine(json);
+```
+
+You can find a full end-to-end sample (init → start → load → chat → unload → stop) in the [`samples/FoundryLocalChat`](https://github.com/elbruno/ElBruno.FoundryLocalMonitor/tree/main/samples/FoundryLocalChat) folder of the repo.
+
 ## How instances are discovered
 
 This is the part I like the most, so let me explain the trick.
@@ -76,6 +127,36 @@ So the monitor does something simple and effective: it **scans your local ports*
 5. Endpoints are grouped by PID, so one process = one card in the UI.
 
 Why parallel? A typical machine has 15–30 listening ports. Probing them one by one, with a timeout each, could take 20+ seconds. Fanning out all the probes at once brings the whole scan down to roughly the time of a single probe — about 800ms. The scan re-runs every 30 seconds, so newly launched apps show up on their own.
+
+In .NET, the port enumeration and the parallel probe boil down to something like this:
+
+```csharp
+using System.Net.NetworkInformation;
+
+// 1. Ask the OS for every port listening on localhost (fast kernel call).
+var listeners = IPGlobalProperties.GetIPGlobalProperties()
+    .GetActiveTcpListeners()
+    .Where(ep => IPAddress.IsLoopback(ep.Address))
+    .Select(ep => ep.Port)
+    .Distinct();
+
+// 2. Probe them all in parallel — a Foundry endpoint answers /v1/models
+//    with {"object":"list"}.
+var probes = listeners.Select(async port =>
+{
+    using var http = new HttpClient { Timeout = TimeSpan.FromMilliseconds(800) };
+    try
+    {
+        var json = await http.GetStringAsync($"http://127.0.0.1:{port}/v1/models");
+        return json.Contains("\"object\":\"list\"") ? port : (int?)null;
+    }
+    catch { return null; }
+});
+
+var foundryPorts = (await Task.WhenAll(probes))
+    .Where(p => p is not null)
+    .Select(p => p!.Value);
+```
 
 The nice side effect: because the monitor talks HTTP and not the CLI, it sees **everything** — CLI, C# SDK, Python SDK, Aspire, or any OpenAI-compatible local server. If it listens and it answers, it shows up.
 
@@ -103,6 +184,44 @@ The monitor strips the version (`:5`), reads the suffix, and turns it into a fri
 | `-directml-gpu` | DirectML | 🟣 purple |
 | `-winml-cpu` | WinML | 🟠 orange |
 
+The parsing itself is a nice little C# pattern-match — strip the version, match the longest device suffix, map it to a label:
+
+```csharp
+static (string Alias, string Device) ParseModelId(string modelId)
+{
+    // "Phi-4-mini-instruct-cuda-gpu:5" -> drop the ":5" version.
+    var noVersion = modelId.Split(':')[0];
+
+    // Longest suffixes first so "-cuda-gpu" wins over "-gpu".
+    string[] suffixes =
+    [
+        "-trtrtx-gpu", "-cuda-gpu", "-generic-gpu", "-generic-cpu",
+        "-winml-directml", "-winml-cpu", "-directml-gpu", "-cpu", "-gpu"
+    ];
+
+    foreach (var suffix in suffixes)
+    {
+        if (!noVersion.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            continue;
+
+        var alias  = noVersion[..^suffix.Length];
+        var device = suffix switch
+        {
+            "-trtrtx-gpu"                       => "TensorRT",
+            "-cuda-gpu"                         => "CUDA",
+            "-generic-gpu" or "-gpu"            => "GPU",
+            "-generic-cpu" or "-cpu"            => "CPU",
+            "-winml-directml" or "-directml-gpu"=> "DirectML",
+            "-winml-cpu"                        => "WinML",
+            _                                   => "?"
+        };
+        return (alias, device);
+    }
+
+    return (noVersion, "?"); // utility models have no device suffix
+}
+```
+
 So at a glance you can tell whether that model is actually running on your GPU or quietly sitting on the CPU. Very useful when you are wondering why something is slow.
 
 And about those notifications: to avoid noise, models discovered on the SDK's own internal ports are marked *silent* by default. Only load/unload events from real apps or the daemon pop a toast. You can tune this in Settings.
@@ -122,6 +241,7 @@ Greetings 🖐️
 ## Resources
 
 - 📦 NuGet package: [ElBruno.FoundryLocalMonitor](https://www.nuget.org/packages/ElBruno.FoundryLocalMonitor/)
+- 🧩 Foundry Local .NET SDK: [Microsoft.AI.Foundry.Local](https://www.nuget.org/packages/Microsoft.AI.Foundry.Local)
 - 💻 Source code on GitHub: [elbruno/ElBruno.FoundryLocalMonitor](https://github.com/elbruno/ElBruno.FoundryLocalMonitor)
 - 📖 Foundry Local documentation: [learn.microsoft.com/azure/ai-foundry/foundry-local](https://learn.microsoft.com/azure/ai-foundry/foundry-local/)
 - 🚀 Get started with Foundry Local: [Foundry Local quickstart](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started)
