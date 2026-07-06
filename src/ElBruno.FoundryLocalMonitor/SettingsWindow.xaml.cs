@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using ElBruno.FoundryLocalMonitor.Configuration;
 using ElBruno.FoundryLocalMonitor.Services;
 
@@ -22,6 +23,17 @@ public partial class SettingsWindow : Window
         NotifyOnLoadBox.IsChecked = _settings.ShowNotificationsOnLoad;
         NotifyOnUnloadBox.IsChecked = _settings.ShowNotificationsOnUnload;
         StartMinimizedBox.IsChecked = _settings.StartMinimizedToTray;
+
+        // Select the matching theme item
+        foreach (ComboBoxItem item in ThemeBox.Items)
+        {
+            if (item.Content?.ToString() == _settings.Theme)
+            {
+                ThemeBox.SelectedItem = item;
+                break;
+            }
+        }
+        if (ThemeBox.SelectedItem == null) ThemeBox.SelectedIndex = 0;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -34,6 +46,10 @@ public partial class SettingsWindow : Window
         _settings.ShowNotificationsOnLoad = NotifyOnLoadBox.IsChecked == true;
         _settings.ShowNotificationsOnUnload = NotifyOnUnloadBox.IsChecked == true;
         _settings.StartMinimizedToTray = StartMinimizedBox.IsChecked == true;
+
+        var selectedTheme = (ThemeBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "System";
+        _settings.Theme = selectedTheme;
+        ThemeManager.Apply(selectedTheme);
 
         SettingsService.Save(_settings);
         Hide();

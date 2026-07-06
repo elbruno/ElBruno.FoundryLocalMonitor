@@ -5,7 +5,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>foundrylocalmon</ToolCommandName>
     <PackageId>ElBruno.FoundryLocalMonitor</PackageId>
-    <Version>0.5.17</Version>
+    <Version>0.5.18</Version>
     <Authors>Bruno Capuano</Authors>
     <Description>Windows systray monitor for Foundry Local — model load/unload notifications, mini status window</Description>
     <PackageTags>foundry-local;ai;monitor;windows;systray</PackageTags>

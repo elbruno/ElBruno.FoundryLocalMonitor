@@ -24,6 +24,7 @@ public partial class App : System.Windows.Application
         RegisterGlobalExceptionHandlers();
 
         var settings = SettingsService.Load();
+        ThemeManager.Apply(settings.Theme);
 
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>

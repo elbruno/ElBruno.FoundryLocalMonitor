@@ -8,4 +8,6 @@ public class AppSettings
     public bool ShowNotificationsOnUnload { get; set; } = true;
     public bool StartMinimizedToTray { get; set; } = false;
     public bool LaunchOnStartup { get; set; } = false;
+    /// <summary>Theme name: "System" (default), "Light", or "Dark".</summary>
+    public string Theme { get; set; } = "System";
 }

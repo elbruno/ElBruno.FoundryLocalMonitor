@@ -134,7 +134,9 @@ public class FoundryHttpClient
             }
         }
 
-        return new FoundryModel(fullId, alias, device, true);
+        // Use noVersion as the stable identity key so the model isn't seen as
+        // "new" on every poll when the API bumps the :N suffix (e.g. :2 → :3).
+        return new FoundryModel(noVersion, alias, device, true);
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()

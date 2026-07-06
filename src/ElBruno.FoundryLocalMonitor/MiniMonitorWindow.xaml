@@ -10,20 +10,26 @@
         Topmost="True"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize">
-    <Border CornerRadius="8" Background="#313244" BorderBrush="#45475A" BorderThickness="1" Padding="12,8">
+    <Border CornerRadius="8"
+            Background="{DynamicResource OverlayBrush}"
+            BorderBrush="{DynamicResource SurfaceMidBrush}"
+            BorderThickness="1" Padding="12,8">
         <DockPanel>
             <!-- Close button -->
             <Button DockPanel.Dock="Right" Content="&#x2715;" Width="20" Height="20"
-                    Background="Transparent" Foreground="#A6ADC8" BorderThickness="0"
-                    FontSize="12" Cursor="Hand" VerticalAlignment="Top"
+                    Background="Transparent"
+                    Foreground="{DynamicResource SubtextBrush}"
+                    BorderThickness="0" FontSize="12" Cursor="Hand" VerticalAlignment="Top"
                     Click="CloseButton_Click"/>
 
             <StackPanel>
                 <!-- Title row -->
                 <DockPanel Margin="0,0,0,6">
-                    <TextBlock Text="🔷 Foundry Local Monitor" Foreground="#89B4FA"
+                    <TextBlock Text="🔷 Foundry Local Monitor"
+                               Foreground="{DynamicResource AccentBrush}"
                                FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding AppVersion}" Foreground="#6C7086"
+                    <TextBlock Text="{Binding AppVersion}"
+                               Foreground="{DynamicResource MutedBrush}"
                                FontSize="11" Margin="6,0,0,0" VerticalAlignment="Center"/>
                 </DockPanel>
 
@@ -32,42 +38,48 @@
                     <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="#F38BA8"/>
+                                <Setter Property="Fill" Value="{DynamicResource RedBrush}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                        <Setter Property="Fill" Value="#A6E3A1"/>
+                                        <Setter Property="Fill" Value="{DynamicResource GreenBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Ellipse.Style>
                     </Ellipse>
-                    <TextBlock Text="{Binding StatusText}" Foreground="#CDD6F4"
+                    <TextBlock Text="{Binding StatusText}"
+                               Foreground="{DynamicResource TextBrush}"
                                FontSize="13" FontWeight="SemiBold"/>
                 </DockPanel>
 
                 <!-- Endpoint row (only shown when running) -->
-                <TextBlock Text="{Binding EndpointText}" Foreground="#89B4FA"
+                <TextBlock Text="{Binding EndpointText}"
+                           Foreground="{DynamicResource AccentBrush}"
                            FontSize="10" Margin="14,0,0,2" FontFamily="Consolas"
                            Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}"/>
 
                 <!-- Model row -->
-                <TextBlock Text="{Binding CurrentModel}" Foreground="#A6ADC8"
+                <TextBlock Text="{Binding CurrentModel}"
+                           Foreground="{DynamicResource SubtextBrush}"
                            FontSize="11" Margin="14,0,0,4"/>
 
                 <!-- CLI warning row (visible only when CLI not installed) -->
-                <Border Background="#45475A" CornerRadius="4" Padding="8,5" Margin="0,4,0,0"
+                <Border Background="{DynamicResource SurfaceMidBrush}" CornerRadius="4" Padding="8,5"
+                        Margin="0,4,0,0"
                         Visibility="{Binding ShowCliWarning, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <TextBlock Text="⚠ Foundry CLI not installed" Foreground="#FAB387"
+                        <TextBlock Text="⚠ Foundry CLI not installed"
+                                   Foreground="{DynamicResource WarnBrush}"
                                    FontSize="11" FontWeight="SemiBold"/>
                         <TextBlock Text="winget install Microsoft.FoundryLocal"
-                                   Foreground="#CDD6F4" FontSize="10" Margin="0,2,0,0"
-                                   FontFamily="Consolas"/>
+                                   Foreground="{DynamicResource TextBrush}"
+                                   FontSize="10" Margin="0,2,0,0" FontFamily="Consolas"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Countdown row -->
-                <TextBlock Text="{Binding NextRefreshText}" Foreground="#6C7086"
+                <TextBlock Text="{Binding NextRefreshText}"
+                           Foreground="{DynamicResource MutedBrush}"
                            FontSize="10" Margin="14,4,0,0"/>
             </StackPanel>
         </DockPanel>
