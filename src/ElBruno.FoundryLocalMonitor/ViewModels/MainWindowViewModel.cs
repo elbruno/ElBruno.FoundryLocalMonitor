@@ -5,6 +5,8 @@ using ElBruno.FoundryLocalMonitor.Models;
 using ElBruno.FoundryLocalMonitor.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows.Threading;
 
 namespace ElBruno.FoundryLocalMonitor.ViewModels;
@@ -142,6 +144,27 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         try { var uri = new Uri(url); return $"{uri.Scheme}://{uri.Authority}"; }
         catch { return url; }
+    }
+
+    [RelayCommand]
+    private void OpenFolder(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            if (File.Exists(path))
+                Process.Start("explorer.exe", $"/select,\"{path}\"");
+            else
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                    Process.Start("explorer.exe", dir);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to open folder for path {Path}", path);
+        }
     }
 
     [RelayCommand]
