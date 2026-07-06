@@ -1,10 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ElBruno.FoundryLocalMonitor.Foundry;
 using ElBruno.FoundryLocalMonitor.Models;
 using ElBruno.FoundryLocalMonitor.Services;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
-using WpfApplication = System.Windows.Application;
 
 namespace ElBruno.FoundryLocalMonitor.ViewModels;
 
@@ -19,6 +19,7 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<FoundryModel> LoadedModels { get; } = [];
     public ObservableCollection<FoundryModel> AvailableModels { get; } = [];
+    public ObservableCollection<FoundryEndpoint> DiscoveredInstances { get; } = [];
 
     public MainWindowViewModel(IFoundryService foundryService)
     {
@@ -26,6 +27,7 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         _foundryService.ServiceStatusChanged += OnServiceStatusChanged;
         _foundryService.ModelStateChanged += OnModelStateChanged;
         _foundryService.EndpointChanged += OnEndpointChanged;
+        _foundryService.DiscoveredEndpointsChanged += OnDiscoveredEndpointsChanged;
     }
 
     private void OnServiceStatusChanged(object? sender, bool isRunning)
@@ -53,6 +55,15 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         _dispatcher.Invoke(() =>
         {
             EndpointText = endpoint != null ? ExtractBaseUrl(endpoint) : "";
+        });
+    }
+
+    private void OnDiscoveredEndpointsChanged(object? sender, IReadOnlyList<FoundryEndpoint> endpoints)
+    {
+        _dispatcher.Invoke(() =>
+        {
+            DiscoveredInstances.Clear();
+            foreach (var ep in endpoints) DiscoveredInstances.Add(ep);
         });
     }
 
@@ -86,6 +97,6 @@ public partial class MainWindowViewModel : ObservableObject, IDisposable
         _foundryService.ServiceStatusChanged -= OnServiceStatusChanged;
         _foundryService.ModelStateChanged -= OnModelStateChanged;
         _foundryService.EndpointChanged -= OnEndpointChanged;
+        _foundryService.DiscoveredEndpointsChanged -= OnDiscoveredEndpointsChanged;
     }
-
 }

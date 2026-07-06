@@ -47,13 +47,14 @@
             <!-- Status tab -->
             <TabItem Header="Status">
                 <StackPanel Margin="20">
+                    <!-- Service status row -->
                     <TextBlock Text="Service Status" FontSize="15" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
                     <TextBlock Text="{Binding StatusText}" FontSize="13"
                                Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
                     <TextBlock Text="{Binding EndpointText}" FontSize="12"
                                Foreground="{DynamicResource AccentBrush}"
-                               FontFamily="Consolas" Margin="0,0,0,12">
+                               FontFamily="Consolas" Margin="0,0,0,16">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -65,6 +66,57 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+
+                    <!-- Discovered instances -->
+                    <TextBlock Text="Detected Foundry Local Instances" FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                    <TextBlock Text="No instances detected yet — waiting for discovery…"
+                               Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,0,0,8">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DiscoveredInstances.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding DiscoveredInstances}" Margin="0,0,0,16">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource OverlayBrush}"
+                                        BorderBrush="{DynamicResource SurfaceMidBrush}"
+                                        BorderThickness="1" CornerRadius="4"
+                                        Padding="12,8" Margin="0,0,0,4">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Border Background="{DynamicResource AccentBrush}"
+                                                    CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
+                                                    Visibility="{Binding IsDaemon, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="daemon" FontSize="10"
+                                                           Foreground="{DynamicResource OnAccentBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding BaseUrl}" FontSize="13"
+                                                       FontFamily="Consolas"
+                                                       Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock FontSize="11" Margin="0,2,0,0"
+                                                       Foreground="{DynamicResource SubtextBrush}">
+                                                <Run Text="Process: "/>
+                                                <Run Text="{Binding ProcessName, TargetNullValue='unknown'}"/>
+                                                <Run Text="   Port: "/>
+                                                <Run Text="{Binding Port}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
                     <Button Content="Refresh" Command="{Binding RefreshCommand}"
                             Width="100" HorizontalAlignment="Left"
                             Background="{DynamicResource AccentBrush}"
@@ -103,12 +155,17 @@
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="Available Models" FontSize="15"
                                FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="1"
+                               Text="Models downloaded to your local cache and ready to load into memory."
+                               FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                Margin="0,0,0,12"/>
-                    <ListView Grid.Row="1" ItemsSource="{Binding AvailableModels}"
+                    <ListView Grid.Row="2" ItemsSource="{Binding AvailableModels}"
                               Background="{DynamicResource OverlayBrush}"
                               BorderThickness="0"
                               Foreground="{DynamicResource TextBrush}">

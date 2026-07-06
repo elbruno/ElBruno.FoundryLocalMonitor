@@ -80,11 +80,31 @@ public class FoundryHttpClient
         return null;
     }
 
-    public async Task<IReadOnlyList<FoundryModel>> GetLoadedModelsAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Calls GET /openai/loadedmodels — the official Foundry Local endpoint that returns
+    /// ONLY models currently loaded into memory. Returns empty on any error.
+    /// </summary>
+    public async Task<IReadOnlyList<FoundryModel>> GetLoadedModelsFromEndpointAsync(string baseUrl, CancellationToken ct = default)
     {
-        // /v1/models returns ONLY loaded/registered models (data:[] when nothing loaded).
-        // /foundry/list returns ALL catalog models (156 KB+) — do NOT use for loaded detection.
-        return await GetLoadedModelsFromUrlAsync(_baseUrl, ct);
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            var json = await _http.GetStringAsync($"{baseUrl.TrimEnd('/')}/openai/loadedmodels", cts.Token);
+            // Response is a plain string array: ["Phi-4-mini-instruct-generic-cpu", ...]
+            var names = JsonSerializer.Deserialize<List<string>>(json, JsonOptions);
+            if (names == null) return [];
+
+            return names
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => ParseModel(new V1ModelEntry(n, null)))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Could not get loaded models from {BaseUrl}/openai/loadedmodels", baseUrl);
+            return [];
+        }
     }
 
     /// <summary>

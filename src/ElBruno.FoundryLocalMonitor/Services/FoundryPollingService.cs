@@ -33,11 +33,13 @@ public class FoundryPollingService : IFoundryService, IDisposable
     public bool IsCliInstalled => _isCliInstalled;
     public string? CurrentEndpoint => _currentEndpoint;
     public IReadOnlyList<FoundryModel> LoadedModels => _loadedModels;
+    public IReadOnlyList<FoundryEndpoint> DiscoveredEndpoints => _discoveredEndpoints;
 
     public event EventHandler<bool>? ServiceStatusChanged;
     public event EventHandler<bool>? CliAvailabilityChanged;
     public event EventHandler<string?>? EndpointChanged;
     public event EventHandler<ModelStateChange>? ModelStateChanged;
+    public event EventHandler<IReadOnlyList<FoundryEndpoint>>? DiscoveredEndpointsChanged;
 
     public FoundryPollingService(
         FoundryHttpClient httpClient,
@@ -143,6 +145,7 @@ public class FoundryPollingService : IFoundryService, IDisposable
             _discoveredEndpoints = endpoints;
             _lastDiscovery = DateTime.UtcNow;
             _logger?.LogDebug("Discovery: {Count} endpoint(s) found", endpoints.Count);
+            DiscoveredEndpointsChanged?.Invoke(this, endpoints);
         }
         catch (Exception ex)
         {
@@ -151,14 +154,15 @@ public class FoundryPollingService : IFoundryService, IDisposable
     }
 
     /// <summary>
-    /// Merges models from ALL discovered Foundry endpoints.
-    /// Catches models from: CLI daemon, SDK-managed apps, Aspire-proxied services.
+    /// Fetches currently loaded models from ALL discovered endpoints via the official
+    /// GET /openai/loadedmodels API, then merges with CLI output as a fallback.
     /// </summary>
     private async Task<IReadOnlyList<FoundryModel>> GetCurrentlyLoadedModelsAsync()
     {
-        // Fresh model list from each discovered endpoint (fast — already found in discovery)
+        // /openai/loadedmodels is the correct Foundry Local endpoint — returns ONLY
+        // models in memory. /v1/models returns the full available catalog (not loaded).
         var allTasks = _discoveredEndpoints
-            .Select(ep => _httpClient.GetLoadedModelsFromUrlAsync(ep.BaseUrl))
+            .Select(ep => _httpClient.GetLoadedModelsFromEndpointAsync(ep.BaseUrl))
             .ToArray();
         var allResults = await Task.WhenAll(allTasks);
 
